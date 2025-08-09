@@ -1,8 +1,6 @@
 // netlify/functions/chat.mjs
-import OpenAI from "openai";
-
 const MODEL_PRIMARY = "gpt-4o-mini";
-const MODEL_FALLBACK = "gpt-4o"; // fallback si el mini no está disponible
+const MODEL_FALLBACK = "gpt-4o"; // por si el primary no está disponible
 
 export async function handler(event) {
   const debug = !!process.env.DEBUG;
@@ -23,8 +21,6 @@ export async function handler(event) {
     const message = (body.message || "").toString().trim();
     if (!message) return json(400, { error: "Falta 'message'" });
 
-    const client = new OpenAI({ apiKey: OPENAI_API_KEY });
-
     const systemPrompt =
 `Eres Operabot SCC. Responde usando los instructivos adjuntos (PDFs).
 - Si hay respuesta en los PDFs, cita los archivos relevantes (solo nombre).
@@ -32,52 +28,67 @@ export async function handler(event) {
 - Si no está en los PDFs, responde con criterio y aclara "(criterio / no hallado en instructivos)".
 - Responde breve y práctico.`;
 
-    const run = async (model) => client.responses.create({
-      model,
-      input: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: message }
-      ],
-      // 👉 File Search en Responses API (correcto)
-      tools: [{ type: "file_search" }],
-      tool_resources: {
-        file_search: { vector_store_ids: [VECTOR_STORE_ID] }
-      },
-      temperature: 0.2,
-      // max_output_tokens: 500, // opcional para limitar costo
-    });
+    const makeReq = async (model) => {
+      const r = await fetch("https://api.openai.com/v1/responses", {
+        method: "POST",
+        headers: {
+          "authorization": `Bearer ${OPENAI_API_KEY}`,
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          model,
+          input: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: message }
+          ],
+          tools: [{ type: "file_search" }],
+          tool_resources: { file_search: { vector_store_ids: [VECTOR_STORE_ID] } },
+          temperature: 0.2
+          // max_output_tokens: 500, // opcional
+        })
+      });
 
-    const resp = await withRetries(async () => {
-      try {
-        return await run(MODEL_PRIMARY);
-      } catch (e) {
-        if (isModelNotFound(e)) return await run(MODEL_FALLBACK);
+      const text = await r.text();
+      let data;
+      try { data = JSON.parse(text); } catch { data = { raw: text }; }
+
+      if (!r.ok) {
+        const err = new Error(`${r.status} ${data?.error?.message || "API error"}`);
+        err.status = r.status;
+        err.code = data?.error?.code;
+        err.data = data;
+        throw err;
+      }
+      return data;
+    };
+
+    // intento con primary y fallback si hace falta
+    let resp;
+    try {
+      resp = await makeReq(MODEL_PRIMARY);
+    } catch (e) {
+      if (isModelNotFound(e)) {
+        resp = await makeReq(MODEL_FALLBACK);
+      } else {
         throw e;
       }
-    });
+    }
 
-    // Texto principal (Responses API)
     const text =
       resp.output_text ||
       resp.output?.[0]?.content?.[0]?.text?.value ||
       "Sin respuesta.";
 
-    // Anotaciones/citas si vienen
-    const annotations =
-      resp.output?.[0]?.content?.[0]?.text?.annotations || [];
+    // citas si vinieran
+    const annotations = resp.output?.[0]?.content?.[0]?.text?.annotations || [];
     const citations = [];
     for (const ann of annotations) {
       const fc = ann?.file_citation;
       if (fc?.file_id) {
-        try {
-          const file = await client.files.retrieve(fc.file_id);
-          citations.push({
-            filename: file?.filename || `file:${fc.file_id}`,
-            preview: ann?.quote || ""
-          });
-        } catch {
-          citations.push({ filename: `file:${fc.file_id}`, preview: ann?.quote || "" });
-        }
+        citations.push({
+          filename: fc?.filename || `file:${fc.file_id}`,
+          preview: ann?.quote || ""
+        });
       }
     }
 
@@ -85,13 +96,11 @@ export async function handler(event) {
   } catch (err) {
     const safe = {
       message: err?.message || String(err),
-      status: err?.status || err?.response?.status,
+      status: err?.status,
       code: err?.code,
-      type: err?.type,
-      data: err?.response?.data
+      data: err?.data
     };
     console.error("chat error:", safe);
-
     if (debug) return json(500, { error: "Fallo interno (debug)", detail: safe });
 
     if (safe.code === "insufficient_quota") {
@@ -116,23 +125,8 @@ function json(statusCode, obj) {
   };
 }
 
-function isModelNotFound(err) {
-  return (
-    err?.code === "model_not_found" ||
-    err?.response?.data?.error?.code === "model_not_found" ||
-    /model not found/i.test(err?.message || "")
-  );
-}
-
-async function withRetries(fn, { tries = 3, baseMs = 600 } = {}) {
-  for (let i = 0; i < tries; i++) {
-    try {
-      return await fn();
-    } catch (err) {
-      const status = err?.status || err?.response?.status;
-      const retriable = status === 429 || status === 503;
-      if (!retriable || i === tries - 1) throw err;
-      await new Promise(r => setTimeout(r, baseMs * Math.pow(2, i)));
-    }
-  }
+function isModelNotFound(e) {
+  const msg = e?.message || "";
+  const code = e?.code || e?.data?.error?.code;
+  return /model not found/i.test(msg) || code === "model_not_found";
 }
