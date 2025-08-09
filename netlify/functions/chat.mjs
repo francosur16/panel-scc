@@ -1,10 +1,11 @@
-// netlify/functions/chat.mjs
 import OpenAI from "openai";
 
 const MODEL_PRIMARY = "gpt-4o-mini";
-const MODEL_FALLBACK = "gpt-4.1-mini"; // intenta este si el primario no está disponible
+const MODEL_FALLBACK = "gpt-4.1-mini";
 
 export async function handler(event) {
+  const debug = !!process.env.DEBUG;
+
   try {
     if (event.httpMethod !== "POST") {
       return json(405, { error: "Use POST" });
@@ -37,11 +38,9 @@ export async function handler(event) {
         { role: "user", content: message }
       ],
       attachments: [{ vector_store_id: VECTOR_STORE_ID }],
-      // opcional: límite para controlar costos de salida
-      // max_output_tokens: 500,
+      // max_output_tokens: 500, // opcional para limitar costo
     });
 
-    // Reintentos con backoff para 429/503, con fallback de modelo
     const resp = await withRetries(async () => {
       try {
         return await run(MODEL_PRIMARY);
@@ -56,7 +55,6 @@ export async function handler(event) {
       resp.output_text ??
       "Sin respuesta.";
 
-    // Extraer citas si vienen anotaciones
     const annotations = resp.output?.[0]?.content?.[0]?.text?.annotations ?? [];
     const citations = [];
     for (const ann of annotations) {
@@ -77,11 +75,16 @@ export async function handler(event) {
       message: err?.message || String(err),
       status: err?.status || err?.response?.status,
       code: err?.code,
-      type: err?.type
+      type: err?.type,
+      data: err?.response?.data
     };
-    console.error("chat error:", safe, err?.response?.data || "");
+    console.error("chat error:", safe);
+
+    // 👉 Si DEBUG=1, devolvemos el detalle para ver la causa exacta
+    if (debug) return json(500, { error: "Fallo interno (debug)", detail: safe });
+
     if (safe.code === "insufficient_quota") {
-      return json(402, { error: "Sin crédito en OpenAI API. Revisá Billing en platform.openai.com." });
+      return json(402, { error: "Sin crédito en OpenAI API. Revisá Billing." });
     }
     if (safe.status === 401) {
       return json(401, { error: "API key inválida o sin permisos." });
@@ -102,8 +105,6 @@ function json(statusCode, obj) {
   };
 }
 
-// Helpers -----------------------------
-
 function isModelNotFound(err) {
   return (
     err?.code === "model_not_found" ||
@@ -120,7 +121,7 @@ async function withRetries(fn, { tries = 3, baseMs = 600 } = {}) {
       const status = err?.status || err?.response?.status;
       const retriable = status === 429 || status === 503;
       if (!retriable || i === tries - 1) throw err;
-      await delay(baseMs * Math.pow(2, i)); // 600ms, 1200ms, 2400ms
+      await delay(baseMs * Math.pow(2, i));
     }
   }
 }
