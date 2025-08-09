@@ -1,7 +1,8 @@
+// netlify/functions/chat.mjs
 import OpenAI from "openai";
 
 const MODEL_PRIMARY = "gpt-4o-mini";
-const MODEL_FALLBACK = "gpt-4.1-mini";
+const MODEL_FALLBACK = "gpt-4o"; // fallback si el mini no está disponible
 
 export async function handler(event) {
   const debug = !!process.env.DEBUG;
@@ -31,14 +32,21 @@ export async function handler(event) {
 - Si no está en los PDFs, responde con criterio y aclara "(criterio / no hallado en instructivos)".
 - Responde breve y práctico.`;
 
-    const run = async (model) => client.responses.create({
+    const run = async (model) => client.chat.completions.create({
       model,
-      input: [
+      messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: message }
       ],
-      attachments: [{ vector_store_id: VECTOR_STORE_ID }],
-      // max_output_tokens: 500, // opcional para limitar costo
+      // 👇 habilita File Search y conecta tu vector store
+      tools: [{ type: "file_search" }],
+      tool_choice: "auto",
+      tool_resources: {
+        file_search: { vector_store_ids: [VECTOR_STORE_ID] }
+      },
+      // Opcional para acotar costos:
+      // max_tokens: 500,
+      temperature: 0.2
     });
 
     const resp = await withRetries(async () => {
@@ -50,21 +58,41 @@ export async function handler(event) {
       }
     });
 
-    const text =
-      resp.output?.[0]?.content?.[0]?.text?.value ??
-      resp.output_text ??
-      "Sin respuesta.";
+    const choice = resp.choices?.[0];
+    const msg = choice?.message;
 
-    const annotations = resp.output?.[0]?.content?.[0]?.text?.annotations ?? [];
+    // Texto de salida
+    let text = "Sin respuesta.";
+    if (msg?.content) {
+      // content puede ser string o array de bloques
+      if (typeof msg.content === "string") {
+        text = msg.content;
+      } else if (Array.isArray(msg.content) && msg.content.length) {
+        const first = msg.content.find(p => p.type === "text") || msg.content[0];
+        text = first?.text || first?.content || JSON.stringify(first);
+      }
+    }
+
+    // Intento de extraer anotaciones/citas (si el modelo las devuelve)
+    const annotations =
+      (Array.isArray(msg?.content)
+        ? (msg.content.find(p => p.type === "text")?.annotations || [])
+        : (msg?.annotations || [])) || [];
+
     const citations = [];
-    for (const ann of annotations) {
-      const fc = ann?.file_citation;
-      if (fc?.file_id) {
-        try {
-          const file = await client.files.retrieve(fc.file_id);
-          citations.push({ filename: file?.filename || `file:${fc.file_id}`, preview: ann?.quote || "" });
-        } catch {
-          citations.push({ filename: `file:${fc.file_id}`, preview: ann?.quote || "" });
+    if (Array.isArray(annotations)) {
+      for (const ann of annotations) {
+        const fc = ann?.file_citation;
+        if (fc?.file_id) {
+          try {
+            const file = await client.files.retrieve(fc.file_id);
+            citations.push({
+              filename: file?.filename || `file:${fc.file_id}`,
+              preview: ann?.quote || ""
+            });
+          } catch {
+            citations.push({ filename: `file:${fc.file_id}`, preview: ann?.quote || "" });
+          }
         }
       }
     }
@@ -80,7 +108,6 @@ export async function handler(event) {
     };
     console.error("chat error:", safe);
 
-    // 👉 Si DEBUG=1, devolvemos el detalle para ver la causa exacta
     if (debug) return json(500, { error: "Fallo interno (debug)", detail: safe });
 
     if (safe.code === "insufficient_quota") {
@@ -119,13 +146,9 @@ async function withRetries(fn, { tries = 3, baseMs = 600 } = {}) {
       return await fn();
     } catch (err) {
       const status = err?.status || err?.response?.status;
-      const retriable = status === 429 || status === 503;
+      const retriable = status === 429 ||  status === 503;
       if (!retriable || i === tries - 1) throw err;
-      await delay(baseMs * Math.pow(2, i));
+      await new Promise(r => setTimeout(r, baseMs * Math.pow(2, i)));
     }
   }
-}
-
-function delay(ms) {
-  return new Promise(res => setTimeout(res, ms));
 }
