@@ -1,0 +1,1418 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Panel de instructivos</title>
+  <style>
+  
+    .encabezado {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0px;
+    }
+
+    .encabezado img {
+      height: 40px;
+      max-width: 110px;
+      object-fit: contain;
+    }
+
+    .encabezado h1 {
+      margin: 0;
+      flex-grow: 1;
+      text-align: center;
+      font-size: 40px;
+    }
+
+    body {
+      font-family: "Segoe UI", sans-serif;
+      margin: 0;
+      padding: 0;
+      background-image: url("imagenes/fondo.jpg");
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+    }
+
+    header {
+      background-color: #2c3e50;
+      color: #ffffff;
+      padding: 10px 20px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    header h1 {
+      margin: 0;
+      flex-grow: 1;
+      text-align: center;
+      font-size: 40px;
+      color: #ffffff;
+      user-select: none;
+      padding-left: 65px;
+    }
+
+    #btnLogout {
+      background: goldenrod;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 16px;
+      cursor: pointer;
+      font-weight: bold;
+      font-family: 'Segoe UI', sans-serif;
+      transition: background-color 0.3s ease, transform 0.1s ease;
+      user-select: none;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+
+    #btnLogout:hover {
+      background-color: #d1b235;
+    }
+
+    #btnLogout:active {
+      transform: scale(0.95);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+  .contenedor {
+  display: grid;
+  grid-template-columns: 200px 200px 200px;
+  gap: 24px 70px; /* 👈 fila 24px / columna 40px */
+  padding: 30px;
+  justify-content: center;
+}
+
+    @keyframes temblor {
+      0%, 100% { transform: translateX(0); }
+      20% { transform: translateX(-3px); }
+      40% { transform: translateX(3px); }
+      60% { transform: translateX(-3px); }
+      80% { transform: translateX(3px); }
+    }
+
+    .animar-alarma {
+      animation: temblor 0.5s ease;
+    }
+
+    @keyframes salirAndando {
+      0% { transform: translateX(0); opacity: 1; }
+      100% { transform: translateX(80px); opacity: 0; }
+    }
+
+    .salir-andando {
+      animation: salirAndando 0.8s forwards ease-in;
+    }
+
+    @keyframes zoomIn {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.3); }
+      100% { transform: scale(1); }
+    }
+
+    @keyframes giroPuerta {
+      0% { transform: rotateY(0); }
+      50% { transform: rotateY(90deg); }
+      100% { transform: rotateY(0); }
+    }
+
+    @keyframes sirenaYSalida {
+      0% { color: red; transform: translateX(0); opacity: 1; }
+      25% { color: white; }
+      50% { color: red; }
+      75% { color: white; transform: translateX(100px); }
+      100% { color: goldenrod; transform: translateX(200px); opacity: 0; }
+    }
+
+    .animar-ambulancia {
+      animation: sirenaYSalida 0.8s ease-out forwards;
+    }
+
+    .animar-camara {
+      animation: zoomIn 0.6s ease;
+    }
+
+    .animar-puerta {
+      animation: giroPuerta 0.7s ease;
+      transform-origin: center;
+    }
+
+    .tarjeta {
+      display: block;
+      background-color: #ffffff;
+      width: 200px;
+      padding: 22px;
+      text-align: center;
+      border-radius: 10px;
+      box-shadow: 1px 1px 6px rgba(0,0,0,0.1);
+      transition: transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease, color 0.3s ease;
+      text-decoration: none;
+      color: #2c3e50;
+      font-weight: bold;
+      user-select: none;
+      cursor: pointer;
+    }
+
+    .tarjeta:hover {
+      transform: scale(1.05);
+      box-shadow: 3px 6px 12px rgba(0, 0, 0, 0.2);
+      background-color: #f0cd44;
+      color: #2d537a;
+    }
+
+    .icono {
+      font-size: 36px;
+      color: goldenrod;
+      margin-bottom: 10px;
+      transition: color 0.3s ease;
+    }
+
+    .tarjeta:hover .icono {
+      color: #2d537a;
+    }
+
+    .tarjeta:active {
+      transform: scale(0.96);
+      box-shadow: 1px 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    @media (max-width: 900px) {
+      .contenedor {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 600px) {
+      .contenedor {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .subgrupo {
+  margin-top: 8px;
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.subboton {
+  background-color: #ffffff;
+  color: #2d537a;
+  font-weight: bold;
+  text-decoration: none;
+  border: 2px solid goldenrod;
+  border-radius: 8px;
+  padding: 10px 16px;
+  margin: 6px 0;
+  width: 180px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+  transition: background-color 0.3s ease;
+}
+
+.subboton:hover {
+  background-color: goldenrod;
+  color: white;
+}
+
+#confirmOverlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+#confirmLogout {
+  background-color: goldenrod;
+  color: white;
+  padding: 30px 40px;
+  border-radius: 14px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4); /* Aumentado para más sombreado */
+  text-align: center;
+  font-size: 20px;
+  font-weight: bold;
+  text-shadow: 1px 1px 3px rgba(0,0,0,0.7);
+}
+
+#confirmLogout .boton {
+  background-color: white;
+  color: #2d537a; /* Azul SCC */
+  border: 2px solid #2d537a;
+  padding: 10px 20px;
+  margin: 12px 10px 0;
+  border-radius: 8px;
+  font-weight: bold;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.3s ease, color 0.3s ease, transform 0.1s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+#confirmLogout .boton:hover {
+  background-color: #2d537a;
+  color: white;
+}
+
+#confirmLogout .boton:active {
+  transform: scale(0.95);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+    /* Animación bienvenida y fondo difuminado */
+    #bienvenidaOverlay {
+      position: fixed;
+      inset: 0;
+      background-color: rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+      opacity: 0;
+      animation: fadeOverlay 0.4s ease-out forwards;
+      transition: backdrop-filter 0.5s ease, background-color 0.5s ease, opacity 0.5s ease;
+    }
+
+    #bienvenidaOverlay.fade-out {
+      backdrop-filter: blur(0px);
+      background-color: rgba(0, 0, 0, 0);
+      opacity: 0;
+    }
+
+    #bienvenidaMensaje {
+      background-color: rgba(218, 165, 32, 0.95); /* goldenrod translúcido */
+      color: #2c3e50;
+      font-size: 32px;
+      font-weight: bold;
+      padding: 30px 40px;
+      border-radius: 16px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+      animation: scaleIn 0.6s ease;
+      text-align: center;
+      user-select: none;
+    }
+
+    @keyframes scaleIn {
+      0% {
+        transform: scale(0.8);
+        opacity: 0;
+      }
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+
+    @keyframes scaleOut {
+      0% {
+        transform: scale(1);
+        opacity: 1;
+      }
+      100% {
+        transform: scale(0.8);
+        opacity: 0;
+      }
+    }
+
+    @keyframes fadeOverlay {
+      to {
+        opacity: 1;
+      }
+    }
+
+    /* Modal para PDF */
+.modal {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0,0,0,0);
+  backdrop-filter: blur(0px);
+  display: none;
+  opacity: 0;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  transition: backdrop-filter 0.4s ease, background-color 0.4s ease, opacity 0.4s ease;
+}
+
+    .modal-content {
+      position: relative;
+      width: 90%;
+      max-width: 900px;
+      height: 80vh;
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+      overflow: hidden;
+    }
+
+#closeModal {
+  position: absolute;
+  top: -16px;
+  right: -16px;
+  background: goldenrod;
+  color: white;
+  border: none;
+  font-size: 22px;
+  font-weight: bold;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  cursor: pointer;
+  user-select: none;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+  transition: background-color 0.3s ease, transform 0.2s ease;
+  z-index: 2500;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-start;
+  padding-left: 6px;
+  padding-bottom: 4px;
+}
+@keyframes aparecerCerrar {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes brilloLoader {
+  0%   { box-shadow: 0 0 8px rgba(255, 215, 0, 0.3); }
+  50%  { box-shadow: 0 0 16px rgba(255, 215, 0, 0.6); }
+  100% { box-shadow: 0 0 8px rgba(255, 215, 0, 0.3); }
+}
+
+#closeModal {
+  animation: aparecerCerrar 0.4s ease-out;
+}
+
+    #closeModal:hover {
+      background-color: #c89c1d;
+    }
+
+#loader {
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+#iframePDF {
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+     #confirmOverlay {
+      position: fixed;
+      inset: 0;
+      background-color: rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    #confirmBox {
+      background-color: rgba(218, 165, 32, 0.95);
+      color: #2c3e50;
+      padding: 30px 40px;
+      border-radius: 14px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+      text-align: center;
+      font-size: 20px;
+      font-weight: bold;
+    }
+
+    #confirmBox button {
+      margin: 12px 8px 0;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      font-weight: bold;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    #confirmBox .confirm {
+      background-color: goldenrod;
+      color: white;
+    }
+
+    #confirmBox .cancel {
+      background-color: #ccc;
+    }
+
+    #confirmBox .confirm:hover {
+      background-color: #c89c1d;
+    }
+
+.overlay-subbotones {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0);
+  backdrop-filter: blur(0px);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 3000;
+  opacity: 0;
+  transition: backdrop-filter 0.4s ease, background-color 0.4s ease, opacity 0.4s ease;
+}
+
+.grupo-subbotones {
+  background: white;
+  padding: 30px;
+  border-radius: 14px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  animation: fadeIn 0.4s ease-out;
+}
+
+.subboton {
+  background-color: white;
+  color: #2d537a;
+  border: 2px solid goldenrod;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-weight: bold;
+  text-decoration: none;
+  font-size: 16px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  transition: background-color 0.3s ease;
+  min-width: 200px;
+  text-align: center;
+}
+
+.subboton:hover {
+  background-color: goldenrod;
+  color: white;
+}
+
+.cerrarSub {
+  margin-top: 16px;
+  background: goldenrod;
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+@keyframes aparecerSubOverlay {
+  0% {
+    opacity: 0;
+    transform: scale(0.9);
+    backdrop-filter: blur(0px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    backdrop-filter: blur(6px);
+  }
+}
+
+.modal.fade-in {
+  animation: modalFadeIn 0.4s ease-out forwards;
+}
+
+.modal.fade-out {
+  animation: modalFadeOut 0.3s ease-in forwards;
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+    background-color: rgba(0,0,0,0);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+    background-color: rgba(0,0,0,0.7);
+  }
+}
+
+@keyframes modalFadeOut {
+  from {
+    opacity: 1;
+    transform: scale(1);
+    background-color: rgba(0,0,0,0.7);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.96);
+    background-color: rgba(0,0,0,0);
+  }
+}
+
+#buscador {
+  padding: 10px;
+  border-radius: 8px;
+  border: 2px solid goldenrod;
+  background-color: #ffffff;
+  font-size: 16px;
+  font-family: 'Segoe UI', sans-serif;
+  box-shadow: 0 2px 6px #2c3e50;
+  color: #2c3e50;
+  width: 310px;
+}
+
+.buscador-contenedor {
+  display: flex;
+  justify-content: center;
+  margin: 30px auto 10px;
+  width: 102%;
+}
+
+#buscador:focus {
+  outline: none;
+  border-color: #2c3e50;
+  box-shadow: 0 0 0 2px rgba(218,165,32,0.3); /* efecto dorado suave */
+}
+
+.buscador-box {
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+
+.buscador-icono {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: goldenrod;
+  font-size: 18px;
+}
+
+#buscador {
+  padding: 10px 10px 10px 34px;
+  border-radius: 8px;
+  border: 2px solid goldenrod;
+  background-color: #ffffff;
+  font-size: 16px;
+  font-family: 'Segoe UI', sans-serif;
+  box-shadow: 0 2px 6px #2c3e50;
+  color: #2c3e50;
+}
+
+#resultados {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 55%;
+  transform: translateX(-54%);
+  background: white;
+  border: 1px solid #ccc;
+  list-style: none;
+  padding: 0;
+  margin-top: 6px;
+  width: 100%;
+  max-width: 310px;
+  max-height: 220px;
+  overflow-y: auto;
+  z-index: 9999;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+#resultados li {
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background-color 0.8s ease, color 0.3s ease;
+  text-align: center;
+}
+
+#resultados li:hover {
+  background-color: goldenrod; /* Azul SCC */
+  color: #2d537a;
+  font-weight: bold;
+}
+
+.sr-only {
+  position: absolute;
+  left: -9999px;
+}
+
+#chatOperabot {
+  position: fixed;
+  bottom: 100px;
+  right: 40px;
+  z-index: 10001; /* ⬅️ encima del fondo */
+  display: none;
+  flex-direction: column;
+  pointer-events: auto; /* ⬅️ permite clics dentro */
+}
+
+.chat-popup {
+  background-color: white;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+  border-radius: 10px;
+  max-width: 400px;
+  width: 100%;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  animation: deslizarArriba 0.4s ease-out;
+  overflow: hidden;
+}
+
+.chat-box {
+  background-color: white;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+#botOperabot {
+  animation: aparecer 0.6s ease-out;
+}
+
+#fondoOperabot {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(2px);
+  display: none;
+  z-index: 9998; /* ⬅️ debajo del chat */
+  pointer-events: none; /* ⬅️ no bloquea clics */
+}
+
+@keyframes aparecer {
+  from { transform: scale(0); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+@keyframes deslizarArriba {
+  0% {
+    transform: translateY(60px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes entrarSaludo {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes zoomOutBack {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.6); }
+  70%  { transform: scale(0.8); }
+  100% { transform: scale(1); }
+}
+
+.botAnimado {
+  animation: zoomOutBack 0.6s ease-out;
+}
+
+@keyframes parpadeoBot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.respuesta-entrenando {
+  animation: parpadeoBot 1.15s infinite;
+}
+
+  </style>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+</head>
+<body>
+
+  <header>
+
+<div id="confirmOverlay">
+  <div id="confirmLogout">
+    ¿Estás seguro que deseas cerrar sesión?
+    <div style="margin-top: 20px;">
+      <button class="boton" onclick="confirmarLogout()">
+        <i class="fas fa-check-circle"></i> Sí
+      </button>
+      <button class="boton" onclick="cancelarLogout()">
+        <i class="fas fa-times-circle"></i> Cancelar
+      </button>
+    </div>
+  </div>
+</div>
+
+
+    <img src="imagenes/logo1.png" alt="Logo 1" style="height: 60px;" />
+    <h1>Panel de Instructivos - SCC</h1>
+    <button id="btnLogout">Cerrar sesión</button>
+  </header>
+
+  <!-- Mensaje de bienvenida con fondo difuminado -->
+  <div id="bienvenidaOverlay">
+    <div id="bienvenidaMensaje">¡Bienvenidos al SCC!</div>
+  </div>
+
+<div class="buscador-contenedor">
+  <div class="buscador-box">
+    <i class="fas fa-search buscador-icono"></i>
+    <input id="buscador" type="text" placeholder="Buscar instructivo..." autocomplete="off" />
+    <ul id="resultados"></ul>
+  </div>
+</div>
+
+  <div class="contenedor">
+
+ <div id="botOperabot" onclick="abrirOperabot()" style="
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  width: 70px;
+  height: 70px;
+  background-color: goldenrod;
+  border-radius: 50%;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  z-index: 9999;
+">
+  <i id="robotIcono" class="fas fa-robot" style="font-size: 30px; color: white;"></i>
+</div>
+
+    <a href="documentos/daily_htp.pdf" class="tarjeta" onclick="event.preventDefault(); abrirModalPDF(this.href);">
+      <div class="icono"><i class="fas fa-calendar-check"></i></div>
+      <div class="titulo">Daily y HTP</div>
+    </a>
+
+    <a href="documentos/transportes.pdf" class="tarjeta" onclick="moverCamion(event)">
+      <div class="icono" id="camion"><i class="fas fa-truck"></i></div>
+      <div class="titulo">Transportes</div>
+    </a>
+
+    <a href="documentos/camaras.pdf" class="tarjeta" onclick="animarCamara(event)">
+      <div class="icono" id="camara"><i class="fas fa-video"></i></div>
+      <div class="titulo">Control de cámaras</div>
+    </a>
+
+    <a href="documentos/accesos.pdf" class="tarjeta" onclick="animarPuerta(event)">
+      <div class="icono" id="puerta"><i class="fas fa-door-closed"></i></div>
+      <div class="titulo">Control de accesos</div>
+    </a>
+
+    <a href="documentos/embarque.pdf" class="tarjeta" onclick="event.preventDefault(); abrirModalPDF(this.href);">
+      <div class="icono"><i class="fas fa-cube"></i><i class="fas fa-cube"></i></div>
+      <div class="titulo">Embarque</div>
+    </a>
+
+   <div class="tarjeta" onclick="mostrarSubRadio()">
+  <div class="icono"><i class="fas fa-microphone"></i></div>
+  <div class="titulo">Radio</div>
+</div>
+
+    <a href="documentos/inreach.pdf" class="tarjeta" onclick="event.preventDefault(); abrirModalPDF(this.href);">
+      <div class="icono"><i class="fas fa-location-arrow"></i></div>
+      <div class="titulo">Entrega de InReach</div>
+    </a>
+
+    <a href="documentos/inreach.pdf" class="tarjeta" onclick="animarAmbulancia(event)">
+      <div class="icono" id="ambulancia"><i class="fas fa-ambulance"></i></div>
+      <div class="titulo">Emergencias</div>
+    </a>
+
+    <a href="documentos/inreach.pdf" class="tarjeta" onclick="animarAlarma(event)">
+      <div class="icono" id="alarma"><i class="fas fa-bell"></i></div>
+      <div class="titulo">Alarmas</div>
+    </a>
+
+<div class="tarjeta" onclick="mostrarSubProcedimientos()">
+  <div class="icono"><i class="fas fa-tasks"></i></div>
+  <div class="titulo">Procedimientos</div>
+</div>
+
+<div id="subProcedimientosOverlay" class="overlay-subbotones">
+  <div class="grupo-subbotones">
+   <a href="documentos/proceso_a.pdf" class="subboton" onclick="event.preventDefault(); abrirPDFDesdeSubboton(this.href, 'subProcedimientosOverlay');">Procedimiento SCC</a>
+   <a href="documentos/proceso_a.pdf" class="subboton" onclick="event.preventDefault(); abrirPDFDesdeSubboton(this.href, 'subProcedimientosOverlay');">Procedimiento CBVZ</a>
+   <a href="documentos/Procedimiento Planta de procesos.pdf" class="subboton" onclick="event.preventDefault(); abrirPDFDesdeSubboton(this.href, 'subProcedimientosOverlay');">Procedimiento Planta de procesos</a>
+    <button onclick="cerrarProcedimientosOverlay()" class="cerrarSub">✖</button>
+  </div>
+</div>
+
+<div class="tarjeta" onclick="mostrarSubOtros()">
+  <div class="icono"><i class="fas fa-folder-open"></i></div>
+  <div class="titulo">Otros</div>
+</div>
+
+<div id="subOtrosOverlay" class="overlay-subbotones">
+  <div class="grupo-subbotones">
+<a href="documentos/links_utiles.pdf" class="subboton" onclick="event.preventDefault(); abrirPDFDesdeSubboton(this.href, 'subOtrosOverlay');">Links útiles</a>
+<a href="documentos/Speeches.pdf" class="subboton" onclick="event.preventDefault(); abrirPDFDesdeSubboton(this.href, 'subOtrosOverlay');">Speeches</a>
+<a href="documentos/Personal que autoriza.pdf" class="subboton" onclick="event.preventDefault(); abrirPDFDesdeSubboton(this.href, 'subOtrosOverlay');">Personal que autoriza</a>
+<a href="documentos/Operativo Invierno.pdf" class="subboton" onclick="event.preventDefault(); abrirPDFDesdeSubboton(this.href, 'subOtrosOverlay');">Operativo invierno</a>
+<a href="documentos/Acceso a data Q.pdf" class="subboton" onclick="event.preventDefault(); abrirPDFDesdeSubboton(this.href, 'subOtrosOverlay');">Acceso a data Q</a>
+<a href="documentos/QR.pdf" class="subboton" onclick="event.preventDefault(); abrirPDFDesdeSubboton(this.href, 'subOtrosOverlay');">QR</a>
+<a href="documentos/Llaves.pdf" class="subboton" onclick="event.preventDefault(); abrirPDFDesdeSubboton(this.href, 'subOtrosOverlay');">Entrega de llaves</a>
+
+    <button onclick="cerrarSubOverlay()" class="cerrarSub">✖</button>
+  </div>
+</div>
+
+ <div class="tarjeta" onclick="mostrarSubAlarmMonitory()">
+  <div class="icono"><i class="fas fa-exclamation-triangle"></i></div>
+  <div class="titulo">Alarm Monitoring</div>
+  </div>
+
+  <div id="subAlarmMonitoryOverlay" class="overlay-subbotones">
+  <div class="grupo-subbotones">
+    <a href="documentos/tarjetas.pdf" class="subboton" onclick="event.preventDefault(); abrirPDFDesdeSubboton(this.href, 'subAlarmMonitoryOverlay');">
+      Tarjetas
+    </a>
+    <a href="documentos/ticket_lenel.pdf" class="subboton" onclick="event.preventDefault(); abrirPDFDesdeSubboton(this.href, 'subAlarmMonitoryOverlay');">
+      Ticket Lenel
+    </a>
+    <a href="documentos/panel_caido.pdf" class="subboton" onclick="event.preventDefault(); abrirPDFDesdeSubboton(this.href, 'subAlarmMonitoryOverlay');">
+      Ticket panel caído
+    </a>
+    <a href="documentos/marcaciones.pdf" class="subboton" onclick="event.preventDefault(); abrirPDFDesdeSubboton(this.href, 'subAlarmMonitoryOverlay');">
+      Reporte de marcaciones
+    </a>
+    <button onclick="cerrarSubAlarmMonitory()" class="cerrarSub">✖</button>
+  </div>
+</div>
+
+<!-- Modal para mostrar PDFs -->
+<div id="modalPDF" class="modal" style="display: none; align-items: center; justify-content: center;">
+  <div class="modal-content" style="position: relative;">
+    <button id="closeModal" aria-label="Cerrar modal">&times;</button>
+
+    <!-- Loader centrado dentro del modal -->
+<div id="loader" style="
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+  background-color: goldenrod;
+  padding: 16px 24px;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+  font-size: 22px;
+  font-weight: bold;
+  color: white;
+  display: none;
+  text-shadow: 1px 1px 3px rgba(0,0,0,0.3);
+  text-align: center;
+  animation: brilloLoader 1.2s ease-in-out infinite;
+">
+  <i class="fas fa-spinner fa-spin" style="margin-right: 10px; color: #2d537a;"></i> Cargando
+</div>
+
+    <iframe id="iframePDF" src="" frameborder="0" width="100%" height="100%"></iframe>
+  </div>
+</div>
+
+  <div id="confirmOverlay">
+  <div id="confirmBox">
+    ¿Estás seguro que deseas cerrar sesión?
+    <div>
+      <button class="confirm" id="confirmLogout">Sí</button>
+      <button class="cancel" id="cancelLogout">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div id="subRadioOverlay" class="overlay-subbotones">
+  <div class="grupo-subbotones">
+   <a href="documentos/trbonet.pdf" class="subboton" onclick="event.preventDefault(); abrirPDFDesdeSubboton(this.href, 'subRadioOverlay');">
+  TRBONet
+</a>
+<a href="documentos/prueba_enlace.pdf" class="subboton" onclick="event.preventDefault(); abrirPDFDesdeSubboton(this.href, 'subRadioOverlay');">
+  Prueba de enlace
+</a>
+<a href="documentos/Código Q.pdf" class="subboton" onclick="event.preventDefault(); abrirPDFDesdeSubboton(this.href, 'subRadioOverlay');">
+  Código Q
+</a>
+    <button onclick="cerrarSubRadio()" class="cerrarSub">✖</button>
+  </div>
+</div>
+
+<div id="fondoOperabot"></div>
+
+<div id="chatOperabot" class="chat-popup">
+  <div class="chat-box">
+
+ <button onclick="cerrarOperabot()" style="
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  font-size: 18px;
+  background: goldenrod;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  z-index: 10002;
+">✖</button>
+
+    <div id="chatLog" style="padding: 50px 16px 16px 16px; max-height: 300px; overflow-y: auto; font-family: 'Segoe UI'; font-size: 15px;">
+      <div style="margin-bottom: 12px; animation: entrarSaludo 0.4s ease-out;">
+        👋 ¡Buenas! Soy Operabot SCC. ¿En qué te ayudo?
+      </div>
+    </div>
+
+    <div style="padding: 10px; display: flex; gap: 6px;">
+      <input id="inputOperabot" type="text" placeholder="Escribí tu pregunta..." style="flex: 1; padding: 8px; border-radius: 6px; border: 1px solid goldenrod;" />
+      <button onclick="responderOperabot()" style="background-color: goldenrod; border: none; padding: 8px 12px; border-radius: 6px; color: white; font-weight: bold;">Enviar</button>
+    </div>
+
+  </div>
+</div>
+</div>
+
+<div id="fondoOperabot" style="
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(2px);
+  display: none;
+  z-index: 9998;
+"></div>
+
+  <script>
+
+  // Mensaje bienvenida: animación entrada/salida y eliminación
+    setTimeout(() => {
+      const overlay = document.getElementById("bienvenidaOverlay");
+      const mensaje = document.getElementById("bienvenidaMensaje");
+
+      if (mensaje) {
+        mensaje.style.animation = "scaleOut 0.5s ease forwards";
+      }
+
+      if (overlay) {
+        overlay.classList.add("fade-out");
+        setTimeout(() => {
+          overlay.remove();
+        }, 600);
+      }
+    }, 1800);
+
+    // Modal PDF
+ function abrirModalPDF(url) {
+  const modal = document.getElementById("modalPDF");
+  const loader = document.getElementById("loader");
+  const iframe = document.getElementById("iframePDF");
+
+  modal.style.display = "flex";
+  requestAnimationFrame(() => {
+    modal.style.opacity = "1";
+    modal.style.backdropFilter = "blur(6px)";
+    modal.style.backgroundColor = "rgba(0,0,0,0.7)";
+  });
+
+  document.body.style.overflow = "hidden";
+
+  loader.style.display = "block";
+  loader.style.opacity = "0";
+  requestAnimationFrame(() => {
+    loader.style.opacity = "1";
+  });
+
+  iframe.style.visibility = "hidden";
+  iframe.style.opacity = "0";
+
+  setTimeout(() => {
+    iframe.src = url;
+    iframe.onload = () => {
+      loader.style.opacity = "0";
+      setTimeout(() => {
+        loader.style.display = "none";
+        iframe.style.visibility = "visible";
+        requestAnimationFrame(() => {
+          iframe.style.opacity = "1";
+        });
+      }, 400);
+    };
+  }, 600);
+}
+
+function abrirPDFDesdeSubboton(url, overlayId) {
+  const overlay = document.getElementById(overlayId);
+
+  overlay.style.opacity = "0";
+  overlay.style.backdropFilter = "blur(0px)";
+  overlay.style.backgroundColor = "rgba(0,0,0,0)";
+  abrirModalPDF(url);
+
+  setTimeout(() => {
+    overlay.style.display = "none";
+  }, 400);
+}
+document.addEventListener("DOMContentLoaded", () => {
+  const modal = document.getElementById("modalPDF");
+  const iframe = document.getElementById("iframePDF");
+  const btnClose = document.getElementById("closeModal");
+
+  btnClose.addEventListener("click", () => {
+    modal.style.opacity = "0";
+    modal.style.backdropFilter = "blur(0px)";
+    modal.style.backgroundColor = "rgba(0,0,0,0)";
+    iframe.src = "";
+    document.body.style.overflow = "";
+
+    setTimeout(() => {
+      modal.style.display = "none";
+    }, 400);
+  });
+
+  modal.addEventListener("click", (e) => {
+    if (e.target === modal) {
+      btnClose.click();
+    }
+  });
+});
+
+    // Control de sesión
+     if (!sessionStorage.getItem('loggedIn')) {
+    window.location.href = 'login.html';
+  }
+
+  const confirmBtn = document.querySelector('#confirmLogout .boton:first-child'); // el botón "Sí"
+const cancelBtn = document.querySelector('#confirmLogout .boton:last-child');   // el botón "Cancelar"
+
+   const confirmOverlay = document.getElementById('confirmOverlay');
+
+  document.getElementById('btnLogout').addEventListener('click', () => {
+    confirmOverlay.style.display = 'flex';
+  });
+
+  confirmBtn.addEventListener('click', () => {
+    sessionStorage.removeItem('loggedIn');
+    window.location.href = 'login.html';
+  });
+
+  cancelBtn.addEventListener('click', () => {
+    confirmOverlay.style.display = 'none';
+  });
+
+    // Animaciones + apertura modal
+
+    function moverCamion(event) {
+      event.preventDefault();
+      const camion = document.getElementById("camion");
+      camion.classList.remove("salir-andando");
+      void camion.offsetWidth;
+      camion.classList.add("salir-andando");
+      setTimeout(() => {
+        camion.classList.remove("salir-andando");
+        abrirModalPDF("documentos/transportes.pdf");
+      }, 850);
+    }
+
+    function animarCamara(event) {
+      event.preventDefault();
+      const camara = document.getElementById("camara");
+      camara.classList.remove("animar-camara");
+      void camara.offsetWidth;
+      camara.classList.add("animar-camara");
+      setTimeout(() => {
+        abrirModalPDF("documentos/camaras.pdf");
+      }, 600);
+    }
+
+    function animarPuerta(event) {
+      event.preventDefault();
+      const puerta = document.getElementById("puerta");
+      puerta.classList.remove("animar-puerta");
+      void puerta.offsetWidth;
+      puerta.classList.add("animar-puerta");
+      setTimeout(() => {
+        abrirModalPDF("documentos/accesos.pdf");
+      }, 700);
+    }
+
+    function animarAmbulancia(event) {
+      event.preventDefault();
+      const ambu = document.getElementById("ambulancia");
+      ambu.classList.remove("animar-ambulancia");
+      void ambu.offsetWidth;
+      ambu.classList.add("animar-ambulancia");
+      setTimeout(() => {
+        ambu.classList.remove("animar-ambulancia");
+        ambu.style.opacity = "1";
+        ambu.style.transform = "translateX(0)";
+        ambu.style.color = "";
+        abrirModalPDF("documentos/inreach.pdf");
+      }, 850);
+    }
+
+    function animarAlarma(event) {
+      event.preventDefault();
+      const alarma = document.getElementById("alarma");
+      alarma.classList.remove("animar-alarma");
+      void alarma.offsetWidth;
+      alarma.classList.add("animar-alarma");
+      setTimeout(() => {
+        abrirModalPDF("documentos/inreach.pdf");
+      }, 500);
+    }
+    
+    function confirmarLogout() {
+    sessionStorage.removeItem('loggedIn');
+    window.location.href = 'login.html';
+  }
+
+  function cancelarLogout() {
+    confirmOverlay.style.display = 'none';
+  }
+
+  function toggleSubgrupo(id) {
+  const grupo = document.getElementById(id);
+  grupo.style.display = (grupo.style.display === "none") ? "flex" : "none";
+}
+
+function mostrarSubOtros() {
+  const overlay = document.getElementById("subOtrosOverlay");
+
+  overlay.style.display = "flex";
+
+  requestAnimationFrame(() => {
+    overlay.style.opacity = "1";
+    overlay.style.backdropFilter = "blur(6px)";
+    overlay.style.backgroundColor = "rgba(0,0,0,0.5)";
+  });
+}
+
+function mostrarSubProcedimientos() {
+  const overlay = document.getElementById("subProcedimientosOverlay");
+
+  overlay.style.display = "flex";
+
+  requestAnimationFrame(() => {
+    overlay.style.opacity = "1";
+    overlay.style.backdropFilter = "blur(6px)";
+    overlay.style.backgroundColor = "rgba(0,0,0,0.5)";
+  });
+}
+
+function cerrarProcedimientosOverlay() {
+  const overlay = document.getElementById("subProcedimientosOverlay");
+
+  overlay.style.opacity = "0";
+  overlay.style.backdropFilter = "blur(0px)";
+  overlay.style.backgroundColor = "rgba(0,0,0,0)";
+
+  setTimeout(() => {
+    overlay.style.display = "none";
+  }, 400);
+}
+
+function cerrarSubOverlay() {
+  const overlay = document.getElementById("subOtrosOverlay");
+
+  overlay.style.opacity = "0";
+  overlay.style.backdropFilter = "blur(0px)";
+  overlay.style.backgroundColor = "rgba(0,0,0,0)";
+
+  setTimeout(() => {
+    overlay.style.display = "none";
+  }, 400); // coincide con la duración de la transición
+}
+
+function mostrarSubRadio() {
+  const overlay = document.getElementById("subRadioOverlay");
+  overlay.style.display = "flex";
+
+  requestAnimationFrame(() => {
+    overlay.style.opacity = "1";
+    overlay.style.backdropFilter = "blur(6px)";
+    overlay.style.backgroundColor = "rgba(0,0,0,0.5)";
+  });
+}
+
+function cerrarSubRadio() {
+  const overlay = document.getElementById("subRadioOverlay");
+  overlay.style.opacity = "0";
+  overlay.style.backdropFilter = "blur(0px)";
+  overlay.style.backgroundColor = "rgba(0,0,0,0)";
+  setTimeout(() => {
+    overlay.style.display = "none";
+  }, 400);
+}
+
+function mostrarSubAlarmMonitory() {
+  const overlay = document.getElementById("subAlarmMonitoryOverlay");
+  overlay.style.display = "flex";
+
+  requestAnimationFrame(() => {
+    overlay.style.opacity = "1";
+    overlay.style.backdropFilter = "blur(6px)";
+    overlay.style.backgroundColor = "rgba(0,0,0,0.5)";
+  });
+}
+
+function cerrarSubAlarmMonitory() {
+  const overlay = document.getElementById("subAlarmMonitoryOverlay");
+  overlay.style.opacity = "0";
+  overlay.style.backdropFilter = "blur(0px)";
+  overlay.style.backgroundColor = "rgba(0,0,0,0)";
+  setTimeout(() => {
+    overlay.style.display = "none";
+  }, 400);
+}
+
+const opciones = [
+  { nombre: "Daily y HTP", url: "documentos/daily_htp.pdf" },
+  { nombre: "Transportes", url: "documentos/transportes.pdf" },
+  { nombre: "Control de cámaras", url: "documentos/camaras.pdf" },
+  { nombre: "Control de accesos", url: "documentos/accesos.pdf" },
+  { nombre: "Embarque", url: "documentos/embarque.pdf" },
+  { nombre: "Radio", url: "documentos/trbonet.pdf" },
+  { nombre: "Entrega de InReach", url: "documentos/inreach.pdf" },
+  { nombre: "Emergencias", url: "documentos/inreach.pdf" },
+  { nombre: "Alarmas", url: "documentos/inreach.pdf" },
+  { nombre: "Procedimiento SCC", url: "documentos/proceso_a.pdf" },
+  { nombre: "Procedimiento CBVZ", url: "documentos/proceso_a.pdf" },
+  { nombre: "Links útiles", url: "documentos/links_utiles.pdf" },
+  { nombre: "Speeches", url: "documentos/Speeches.pdf" },
+  { nombre: "Personal que autoriza", url: "documentos/Personal que autoriza.pdf" },
+  { nombre: "Acceso a data Q", url: "documentos/Acceso a data Q.pdf" },
+  { nombre: "QR", url: "documentos/QR.pdf" },
+  { nombre: "Entrega de llaves", url: "documentos/Llaves.pdf" },
+  { nombre: "Tarjetas", url: "documentos/tarjetas.pdf" },
+  { nombre: "Ticket Lenel", url: "documentos/ticket_lenel.pdf" },
+  { nombre: "Ticket panel caído", url: "documentos/panel_caido.pdf" },
+  { nombre: "Reporte de marcaciones", url: "documentos/marcaciones.pdf" }
+];
+
+const buscador = document.getElementById("buscador");
+const resultados = document.getElementById("resultados");
+
+buscador.addEventListener("input", () => {
+  const texto = buscador.value.toLowerCase().trim();
+  resultados.innerHTML = "";
+
+  if (!texto) {
+    resultados.style.display = "none";
+    return;
+  }
+
+  const filtradas = opciones.filter(op => op.nombre.toLowerCase().includes(texto));
+
+  if (filtradas.length === 0) {
+    resultados.innerHTML = `<li style="padding: 8px; color: #777;">Sin resultados</li>`;
+  } else {
+    filtradas.forEach(op => {
+      const li = document.createElement("li");
+      li.textContent = op.nombre;
+      li.style.padding = "8px";
+      li.style.cursor = "pointer";
+
+      li.addEventListener("mouseenter", () => {
+        li.style.backgroundColor = "#eee";
+      });
+      li.addEventListener("mouseleave", () => {
+        li.style.backgroundColor = "white";
+      });
+
+      li.addEventListener("click", () => {
+        abrirModalPDF(op.url);
+        resultados.style.display = "none";
+        buscador.value = "";
+      });
+
+      resultados.appendChild(li);
+    });
+  }
+
+  resultados.style.display = "block";
+});
+
+// Ocultar la lista cuando se pierde foco con pequeño delay para permitir click
+buscador.addEventListener("blur", () => {
+  setTimeout(() => {
+    resultados.style.display = "none";
+  }, 150);
+});
+
+// Mostrar la lista cuando el input está en foco y tiene resultados
+buscador.addEventListener("focus", () => {
+  if (resultados.children.length > 0) {
+    resultados.style.display = "block";
+  }
+});
+
+function abrirOperabot() {
+  const chat = document.getElementById("chatOperabot");
+  const fondo = document.getElementById("fondoOperabot");
+  const icono = document.getElementById("robotIcono");
+
+  fondo.style.display = "block";
+  chat.style.display = "flex";
+  chat.style.flexDirection = "column";
+  document.body.style.overflow = "hidden";
+
+  icono.classList.add("botAnimado");
+
+  setTimeout(() => {
+    icono.classList.remove("botAnimado");
+  }, 800);
+}
+
+function cerrarOperabot() {
+  const chat = document.getElementById("chatOperabot");
+  const fondo = document.getElementById("fondoOperabot");
+  chat.style.display = "none";
+  fondo.style.display = "none";
+  document.body.style.overflow = "";
+}
+
+function responderOperabot() {
+  const input = document.getElementById("inputOperabot");
+  const chatLog = document.getElementById("chatLog");
+  const pregunta = input.value.trim();
+
+  if (!pregunta) return;
+
+  // Mostrar pregunta
+  const userMsg = document.createElement("div");
+  userMsg.textContent = `🙋 ${pregunta}`;
+  userMsg.style.marginBottom = "8px";
+  chatLog.appendChild(userMsg);
+
+const respuesta = document.createElement("div");
+respuesta.textContent = `🔧🤖 Todavía estoy aprendiendo, ¡pronto podré responder todas tus preguntas!`;
+respuesta.style.marginBottom = "12px";
+respuesta.classList.add("respuesta-entrenando");
+chatLog.appendChild(respuesta);
+
+  input.value = "";
+  chatLog.scrollTop = chatLog.scrollHeight;
+}
+document.getElementById("inputOperabot").addEventListener("keydown", function(e) {
+  if (e.key === "Enter") {
+    responderOperabot();
+  }
+});
+
+  </script>
+</body>
+</html>

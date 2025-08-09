@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Panel de instructivos</title>
+  <style>
+  
+    .encabezado {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0px;
+    }
+
+    .encabezado img {
+      height: 40px;
+      max-width: 110px;
+      object-fit: contain;
+    }
+
+    .encabezado h1 {
+      margin: 0;
+      flex-grow: 1;
+      text-align: center;
+      font-size: 40px;
+    }
+
+    body {
+      font-family: "Segoe UI", sans-serif;
+      margin: 0;
+      padding: 0;
+      background-image: url("imagenes/fondo.jpg");
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+    }
+
+    header {
+      background-color: #2c3e50;
+      color: #ffffff;
+      padding: 10px 20px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    header h1 {
+      margin: 0;
+      flex-grow: 1;
+      text-align: center;
+      font-size: 40px;
+      color: #ffffff;
+      user-select: none;
+    }
+
+    #btnLogout {
+      background: goldenrod;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 16px;
+      cursor: pointer;
+      font-weight: bold;
+      font-family: 'Segoe UI', sans-serif;
+      transition: background-color 0.3s ease, transform 0.1s ease;
+      user-select: none;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+
+    #btnLogout:hover {
+      background-color: #d1b235;
+    }
+
+    #btnLogout:active {
+      transform: scale(0.95);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    .contenedor {
+      display: grid;
+      grid-template-columns: 200px 200px 200px;
+      column-gap: 80px;
+      row-gap: 24px;
+      padding: 30px;
+      justify-content: center;
+    }
+
+    @keyframes temblor {
+      0%, 100% { transform: translateX(0); }
+      20% { transform: translateX(-3px); }
+      40% { transform: translateX(3px); }
+      60% { transform: translateX(-3px); }
+      80% { transform: translateX(3px); }
+    }
+
+    .animar-alarma {
+      animation: temblor 0.5s ease;
+    }
+
+    @keyframes salirAndando {
+      0% { transform: translateX(0); opacity: 1; }
+      100% { transform: translateX(80px); opacity: 0; }
+    }
+
+    .salir-andando {
+      animation: salirAndando 0.8s forwards ease-in;
+    }
+
+    @keyframes zoomIn {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.3); }
+      100% { transform: scale(1); }
+    }
+
+    @keyframes giroPuerta {
+      0% { transform: rotateY(0); }
+      50% { transform: rotateY(90deg); }
+      100% { transform: rotateY(0); }
+    }
+
+    @keyframes sirenaYSalida {
+      0% { color: red; transform: translateX(0); opacity: 1; }
+      25% { color: white; }
+      50% { color: red; }
+      75% { color: white; transform: translateX(100px); }
+      100% { color: goldenrod; transform: translateX(200px); opacity: 0; }
+    }
+
+    .animar-ambulancia {
+      animation: sirenaYSalida 0.8s ease-out forwards;
+    }
+
+    .animar-camara {
+      animation: zoomIn 0.6s ease;
+    }
+
+    .animar-puerta {
+      animation: giroPuerta 0.7s ease;
+      transform-origin: center;
+    }
+
+    .tarjeta {
+      display: block;
+      background-color: #ffffff;
+      width: 200px;
+      padding: 22px;
+      text-align: center;
+      border-radius: 10px;
+      box-shadow: 1px 1px 6px rgba(0,0,0,0.1);
+      transition: transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease, color 0.3s ease;
+      text-decoration: none;
+      color: #2c3e50;
+      font-weight: bold;
+      user-select: none;
+      cursor: pointer;
+    }
+
+    .tarjeta:hover {
+      transform: scale(1.05);
+      box-shadow: 3px 6px 12px rgba(0, 0, 0, 0.2);
+      background-color: #f0cd44;
+      color: #2d537a;
+    }
+
+    .icono {
+      font-size: 36px;
+      color: goldenrod;
+      margin-bottom: 10px;
+      transition: color 0.3s ease;
+    }
+
+    .tarjeta:hover .icono {
+      color: #2d537a;
+    }
+
+    .tarjeta:active {
+      transform: scale(0.96);
+      box-shadow: 1px 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    @media (max-width: 900px) {
+      .contenedor {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 600px) {
+      .contenedor {
+        grid-template-columns: 1fr;
+      }
+    }
+
+#confirmOverlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+#confirmLogout {
+  background-color: goldenrod;
+  color: white;
+  padding: 30px 40px;
+  border-radius: 14px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4); /* Aumentado para más sombreado */
+  text-align: center;
+  font-size: 20px;
+  font-weight: bold;
+  text-shadow: 1px 1px 3px rgba(0,0,0,0.7);
+}
+
+#confirmLogout .boton {
+  background-color: white;
+  color: #2d537a; /* Azul SCC */
+  border: 2px solid #2d537a;
+  padding: 10px 20px;
+  margin: 12px 10px 0;
+  border-radius: 8px;
+  font-weight: bold;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.3s ease, color 0.3s ease, transform 0.1s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+#confirmLogout .boton:hover {
+  background-color: #2d537a;
+  color: white;
+}
+
+#confirmLogout .boton:active {
+  transform: scale(0.95);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+    /* Animación bienvenida y fondo difuminado */
+    #bienvenidaOverlay {
+      position: fixed;
+      inset: 0;
+      background-color: rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+      opacity: 0;
+      animation: fadeOverlay 0.4s ease-out forwards;
+      transition: backdrop-filter 0.5s ease, background-color 0.5s ease, opacity 0.5s ease;
+    }
+
+    #bienvenidaOverlay.fade-out {
+      backdrop-filter: blur(0px);
+      background-color: rgba(0, 0, 0, 0);
+      opacity: 0;
+    }
+
+    #bienvenidaMensaje {
+      background-color: rgba(218, 165, 32, 0.95); /* goldenrod translúcido */
+      color: #2c3e50;
+      font-size: 32px;
+      font-weight: bold;
+      padding: 30px 40px;
+      border-radius: 16px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+      animation: scaleIn 0.6s ease;
+      text-align: center;
+      user-select: none;
+    }
+
+    @keyframes scaleIn {
+      0% {
+        transform: scale(0.8);
+        opacity: 0;
+      }
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+
+    @keyframes scaleOut {
+      0% {
+        transform: scale(1);
+        opacity: 1;
+      }
+      100% {
+        transform: scale(0.8);
+        opacity: 0;
+      }
+    }
+
+    @keyframes fadeOverlay {
+      to {
+        opacity: 1;
+      }
+    }
+
+    /* Modal para PDF */
+    .modal {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: rgba(0,0,0,0.7);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+    }
+
+    .modal-content {
+      position: relative;
+      width: 90%;
+      max-width: 900px;
+      height: 80vh;
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+      overflow: hidden;
+    }
+
+    #closeModal {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: goldenrod;
+      color: white;
+      border: none;
+      font-size: 28px;
+      font-weight: bold;
+      border-radius: 6px;
+      width: 40px;
+      height: 40px;
+      cursor: pointer;
+      user-select: none;
+      transition: background-color 0.3s ease;
+    }
+
+    #closeModal:hover {
+      background-color: #c89c1d;
+    }
+
+     #confirmOverlay {
+      position: fixed;
+      inset: 0;
+      background-color: rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    #confirmBox {
+      background-color: rgba(218, 165, 32, 0.95);
+      color: #2c3e50;
+      padding: 30px 40px;
+      border-radius: 14px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+      text-align: center;
+      font-size: 20px;
+      font-weight: bold;
+    }
+
+    #confirmBox button {
+      margin: 12px 8px 0;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      font-weight: bold;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    #confirmBox .confirm {
+      background-color: goldenrod;
+      color: white;
+    }
+
+    #confirmBox .cancel {
+      background-color: #ccc;
+    }
+
+    #confirmBox .confirm:hover {
+      background-color: #c89c1d;
+    }
+
+  </style>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+</head>
+<body>
+
+  <header>
+
+<div id="confirmOverlay">
+  <div id="confirmLogout">
+    ¿Estás seguro que deseas cerrar sesión?
+    <div style="margin-top: 20px;">
+      <button class="boton" onclick="confirmarLogout()">
+        <i class="fas fa-check-circle"></i> Sí
+      </button>
+      <button class="boton" onclick="cancelarLogout()">
+        <i class="fas fa-times-circle"></i> Cancelar
+      </button>
+    </div>
+  </div>
+</div>
+
+
+    <img src="imagenes/logo1.png" alt="Logo 1" style="height: 60px;" />
+    <h1>Panel de Instructivos - SCC</h1>
+    <button id="btnLogout">Cerrar sesión</button>
+  </header>
+
+  <!-- Mensaje de bienvenida con fondo difuminado -->
+  <div id="bienvenidaOverlay">
+    <div id="bienvenidaMensaje">¡Bienvenidos al SCC!</div>
+  </div>
+
+  <div class="contenedor">
+    <a href="documentos/daily_htp.pdf" class="tarjeta" onclick="event.preventDefault(); abrirModalPDF(this.href);">
+      <div class="icono"><i class="fas fa-calendar-check"></i></div>
+      <div class="titulo">Daily y HTP</div>
+    </a>
+
+    <a href="documentos/transportes.pdf" class="tarjeta" onclick="moverCamion(event)">
+      <div class="icono" id="camion"><i class="fas fa-truck"></i></div>
+      <div class="titulo">Transportes</div>
+    </a>
+
+    <a href="documentos/camaras.pdf" class="tarjeta" onclick="animarCamara(event)">
+      <div class="icono" id="camara"><i class="fas fa-video"></i></div>
+      <div class="titulo">Control de cámaras</div>
+    </a>
+
+    <a href="documentos/accesos.pdf" class="tarjeta" onclick="animarPuerta(event)">
+      <div class="icono" id="puerta"><i class="fas fa-door-closed"></i></div>
+      <div class="titulo">Control de accesos</div>
+    </a>
+
+    <a href="documentos/embarque.pdf" class="tarjeta" onclick="event.preventDefault(); abrirModalPDF(this.href);">
+      <div class="icono"><i class="fas fa-cube"></i><i class="fas fa-cube"></i></div>
+      <div class="titulo">Embarque</div>
+    </a>
+
+    <a href="documentos/trbonet.pdf" class="tarjeta" onclick="event.preventDefault(); abrirModalPDF(this.href);">
+      <div class="icono"><i class="fas fa-broadcast-tower"></i></div>
+      <div class="titulo">TRBONet</div>
+    </a>
+
+    <a href="documentos/inreach.pdf" class="tarjeta" onclick="event.preventDefault(); abrirModalPDF(this.href);">
+      <div class="icono"><i class="fas fa-location-arrow"></i></div>
+      <div class="titulo">Entrega de InReach</div>
+    </a>
+
+    <a href="documentos/inreach.pdf" class="tarjeta" onclick="animarAmbulancia(event)">
+      <div class="icono" id="ambulancia"><i class="fas fa-ambulance"></i></div>
+      <div class="titulo">Emergencias</div>
+    </a>
+
+    <a href="documentos/inreach.pdf" class="tarjeta" onclick="animarAlarma(event)">
+      <div class="icono" id="alarma"><i class="fas fa-bell"></i></div>
+      <div class="titulo">Alarmas</div>
+    </a>
+
+    <a href="documentos/inreach.pdf" class="tarjeta" onclick="event.preventDefault(); abrirModalPDF(this.href);">
+      <div class="icono"><i class="fas fa-tasks"></i></div>
+      <div class="titulo">Procedimientos</div>
+    </a>
+
+    <a href="documentos/otros.pdf" class="tarjeta" onclick="event.preventDefault(); abrirModalPDF(this.href);">
+      <div class="icono"><i class="fas fa-folder-open"></i></div>
+      <div class="titulo">Otros</div>
+    </a>
+
+    <a href="documentos/alarm_monitory.pdf" class="tarjeta" onclick="event.preventDefault(); abrirModalPDF(this.href);">
+      <div class="icono"><i class="fas fa-exclamation-triangle"></i></div>
+      <div class="titulo">Alarm Monitory</div>
+    </a>
+  </div>
+
+  <!-- Modal para mostrar PDFs -->
+  <div id="modalPDF" class="modal">
+    <div class="modal-content">
+      <button id="closeModal" aria-label="Cerrar modal">&times;</button>
+      <iframe id="iframePDF" src="" frameborder="0" width="100%" height="100%"></iframe>
+    </div>
+  </div>
+
+  <div id="confirmOverlay">
+  <div id="confirmBox">
+    ¿Estás seguro que deseas cerrar sesión?
+    <div>
+      <button class="confirm" id="confirmLogout">Sí</button>
+      <button class="cancel" id="cancelLogout">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+  <script>
+
+  // Mensaje bienvenida: animación entrada/salida y eliminación
+    setTimeout(() => {
+      const overlay = document.getElementById("bienvenidaOverlay");
+      const mensaje = document.getElementById("bienvenidaMensaje");
+
+      if (mensaje) {
+        mensaje.style.animation = "scaleOut 0.5s ease forwards";
+      }
+
+      if (overlay) {
+        overlay.classList.add("fade-out");
+        setTimeout(() => {
+          overlay.remove();
+        }, 600);
+      }
+    }, 1800);
+
+    // Modal PDF
+    const modal = document.getElementById('modalPDF');
+    const iframe = document.getElementById('iframePDF');
+    const btnClose = document.getElementById('closeModal');
+
+    function abrirModalPDF(url) {
+      iframe.src = url;
+      modal.style.display = 'flex';
+      document.body.style.overflow = 'hidden';
+    }
+
+    btnClose.addEventListener('click', () => {
+      modal.style.display = 'none';
+      iframe.src = '';
+      document.body.style.overflow = '';
+    });
+
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        btnClose.click();
+      }
+    });
+
+    // Control de sesión
+     if (!sessionStorage.getItem('loggedIn')) {
+    window.location.href = 'login.html';
+  }
+
+   const confirmOverlay = document.getElementById('confirmOverlay');
+
+  document.getElementById('btnLogout').addEventListener('click', () => {
+    confirmOverlay.style.display = 'flex';
+  });
+
+  confirmBtn.addEventListener('click', () => {
+    sessionStorage.removeItem('loggedIn');
+    window.location.href = 'login.html';
+  });
+
+  cancelBtn.addEventListener('click', () => {
+    confirmOverlay.style.display = 'none';
+  });
+
+    // Animaciones + apertura modal
+
+    function moverCamion(event) {
+      event.preventDefault();
+      const camion = document.getElementById("camion");
+      camion.classList.remove("salir-andando");
+      void camion.offsetWidth;
+      camion.classList.add("salir-andando");
+      setTimeout(() => {
+        camion.classList.remove("salir-andando");
+        abrirModalPDF("documentos/transportes.pdf");
+      }, 850);
+    }
+
+    function animarCamara(event) {
+      event.preventDefault();
+      const camara = document.getElementById("camara");
+      camara.classList.remove("animar-camara");
+      void camara.offsetWidth;
+      camara.classList.add("animar-camara");
+      setTimeout(() => {
+        abrirModalPDF("documentos/camaras.pdf");
+      }, 600);
+    }
+
+    function animarPuerta(event) {
+      event.preventDefault();
+      const puerta = document.getElementById("puerta");
+      puerta.classList.remove("animar-puerta");
+      void puerta.offsetWidth;
+      puerta.classList.add("animar-puerta");
+      setTimeout(() => {
+        abrirModalPDF("documentos/accesos.pdf");
+      }, 700);
+    }
+
+    function animarAmbulancia(event) {
+      event.preventDefault();
+      const ambu = document.getElementById("ambulancia");
+      ambu.classList.remove("animar-ambulancia");
+      void ambu.offsetWidth;
+      ambu.classList.add("animar-ambulancia");
+      setTimeout(() => {
+        ambu.classList.remove("animar-ambulancia");
+        ambu.style.opacity = "1";
+        ambu.style.transform = "translateX(0)";
+        ambu.style.color = "";
+        abrirModalPDF("documentos/inreach.pdf");
+      }, 850);
+    }
+
+    function animarAlarma(event) {
+      event.preventDefault();
+      const alarma = document.getElementById("alarma");
+      alarma.classList.remove("animar-alarma");
+      void alarma.offsetWidth;
+      alarma.classList.add("animar-alarma");
+      setTimeout(() => {
+        abrirModalPDF("documentos/inreach.pdf");
+      }, 500);
+    }
+    
+    function confirmarLogout() {
+    sessionStorage.removeItem('loggedIn');
+    window.location.href = 'login.html';
+  }
+
+  function cancelarLogout() {
+    confirmOverlay.style.display = 'none';
+  }
+
+  </script>
+</body>
+</html>
