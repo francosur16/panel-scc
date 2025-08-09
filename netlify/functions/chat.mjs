@@ -120,6 +120,8 @@ function json(statusCode, obj) {
       "content-type": "application/json; charset=utf-8",
       "access-control-allow-origin": "*",
       "access-control-allow-methods": "POST, OPTIONS",
+      "OpenAI-Beta": "assistants=v2",
+
     },
     body: JSON.stringify(obj),
   };
