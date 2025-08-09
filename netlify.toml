@@ -1,4 +1,8 @@
-﻿[functions]
+﻿[build]
+  publish = "."
+  command = "npm ci"
+
+[functions]
   directory = "netlify/functions"
   node_bundler = "esbuild"
   external_node_modules = ["openai"]
