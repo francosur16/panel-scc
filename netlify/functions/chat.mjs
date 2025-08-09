@@ -32,21 +32,19 @@ export async function handler(event) {
 - Si no está en los PDFs, responde con criterio y aclara "(criterio / no hallado en instructivos)".
 - Responde breve y práctico.`;
 
-    const run = async (model) => client.chat.completions.create({
+    const run = async (model) => client.responses.create({
       model,
-      messages: [
+      input: [
         { role: "system", content: systemPrompt },
         { role: "user", content: message }
       ],
-      // 👇 habilita File Search y conecta tu vector store
+      // 👉 File Search en Responses API (correcto)
       tools: [{ type: "file_search" }],
-      tool_choice: "auto",
       tool_resources: {
         file_search: { vector_store_ids: [VECTOR_STORE_ID] }
       },
-      // Opcional para acotar costos:
-      // max_tokens: 500,
-      temperature: 0.2
+      temperature: 0.2,
+      // max_output_tokens: 500, // opcional para limitar costo
     });
 
     const resp = await withRetries(async () => {
@@ -58,41 +56,27 @@ export async function handler(event) {
       }
     });
 
-    const choice = resp.choices?.[0];
-    const msg = choice?.message;
+    // Texto principal (Responses API)
+    const text =
+      resp.output_text ||
+      resp.output?.[0]?.content?.[0]?.text?.value ||
+      "Sin respuesta.";
 
-    // Texto de salida
-    let text = "Sin respuesta.";
-    if (msg?.content) {
-      // content puede ser string o array de bloques
-      if (typeof msg.content === "string") {
-        text = msg.content;
-      } else if (Array.isArray(msg.content) && msg.content.length) {
-        const first = msg.content.find(p => p.type === "text") || msg.content[0];
-        text = first?.text || first?.content || JSON.stringify(first);
-      }
-    }
-
-    // Intento de extraer anotaciones/citas (si el modelo las devuelve)
+    // Anotaciones/citas si vienen
     const annotations =
-      (Array.isArray(msg?.content)
-        ? (msg.content.find(p => p.type === "text")?.annotations || [])
-        : (msg?.annotations || [])) || [];
-
+      resp.output?.[0]?.content?.[0]?.text?.annotations || [];
     const citations = [];
-    if (Array.isArray(annotations)) {
-      for (const ann of annotations) {
-        const fc = ann?.file_citation;
-        if (fc?.file_id) {
-          try {
-            const file = await client.files.retrieve(fc.file_id);
-            citations.push({
-              filename: file?.filename || `file:${fc.file_id}`,
-              preview: ann?.quote || ""
-            });
-          } catch {
-            citations.push({ filename: `file:${fc.file_id}`, preview: ann?.quote || "" });
-          }
+    for (const ann of annotations) {
+      const fc = ann?.file_citation;
+      if (fc?.file_id) {
+        try {
+          const file = await client.files.retrieve(fc.file_id);
+          citations.push({
+            filename: file?.filename || `file:${fc.file_id}`,
+            preview: ann?.quote || ""
+          });
+        } catch {
+          citations.push({ filename: `file:${fc.file_id}`, preview: ann?.quote || "" });
         }
       }
     }
@@ -146,7 +130,7 @@ async function withRetries(fn, { tries = 3, baseMs = 600 } = {}) {
       return await fn();
     } catch (err) {
       const status = err?.status || err?.response?.status;
-      const retriable = status === 429 ||  status === 503;
+      const retriable = status === 429 || status === 503;
       if (!retriable || i === tries - 1) throw err;
       await new Promise(r => setTimeout(r, baseMs * Math.pow(2, i)));
     }
