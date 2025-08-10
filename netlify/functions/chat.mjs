@@ -98,7 +98,6 @@ export async function handler(event) {
         ],
         temperature: 0.2,
         max_output_tokens: 400,
-        modalities: ["text"], // aseguramos texto
       };
 
       if (withFileSearch && VECTOR_STORE_ID) {
