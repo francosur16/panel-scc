@@ -7,7 +7,7 @@ const MODEL_FALLBACK = "gpt-4o";
 const systemPrompt = `Sos Operabot SCC. Respondé usando los instructivos (PDFs) cuando sea posible.
 - Si hay respuesta en los PDFs, citá los archivos relevantes (solo nombre).
 - Si hay contradicciones entre PDFs, marcálo y sugerí cómo resolver.
-- Si no está en los PDFs, respondé con criterio y aclaración: "(criterio / no hallado en instructivos)".
+- Si no está en los PDFs, respondé con la mejor práctica y aclaración: "(criterio / no hallado en instructivos)".
 - Respondé breve y práctico.`;
 
 const json = (statusCode, obj) => ({
@@ -21,7 +21,7 @@ const json = (statusCode, obj) => ({
 });
 
 // ---- Parser robusto para Responses API ----
-function extract(resp) {
+function extract(resp, fileNameById = new Map()) {
   let text = (resp?.output_text ?? "").toString().trim();
 
   if (!text && Array.isArray(resp?.output)) {
@@ -44,8 +44,10 @@ function extract(resp) {
         for (const ann of anns) {
           const fc = ann?.file_citation || ann?.citation;
           if (fc?.file_id) {
+            const fid = fc.file_id;
+            const friendly = fc?.filename || fc?.file_name || fileNameById.get(fid);
             citations.push({
-              filename: fc?.filename || fc?.file_name || `file:${fc.file_id}`,
+              filename: friendly || `file:${fid}`,
               preview: ann?.quote || fc?.quote || "",
             });
           }
@@ -76,7 +78,35 @@ export async function handler(event) {
 
     const client = new OpenAI({ apiKey: OPENAI_API_KEY });
 
-    // Con RAG: usamos fetch directo con Header Beta para asegurar que el tool esté habilitado
+    // Listamos algunos files del vector store para adjuntarlos (sin usar tool_resources)
+    async function listVectorFiles(limit = 20) {
+      const fileNameById = new Map();
+      const fileIds = [];
+      try {
+        let cursor;
+        do {
+          const page = await client.vectorStores.files.list(VECTOR_STORE_ID, { limit: 20, after: cursor });
+          for (const f of page.data || []) {
+            fileIds.push(f.id);
+            // intentamos recuperar metadatos legibles (nombre)
+            if (f?.id && f?.created_at) {
+              // opcionalmente podríamos pedir /files/:id, pero muchas veces viene filename en annotations
+            }
+          }
+          cursor = page?.last_id || null;
+        } while (fileIds.length < limit && cursor);
+
+        // Intentamos mapear id->nombre consultando /files si hace falta
+        // (no es obligatorio; las citas suelen traer filename)
+        // Para no excedernos, lo hacemos mejor-on-demand cuando falte.
+        return { fileIds: fileIds.slice(0, limit), fileNameById };
+      } catch (e) {
+        if (debug) console.error("listVectorFiles error:", e?.message || e);
+        return { fileIds: [], fileNameById };
+      }
+    }
+
+    // Llamado a Responses API. Si withFileSearch=true, usamos attachments + header beta (sin tool_resources)
     const callResponses = async (model, withFileSearch) => {
       const payload = {
         model,
@@ -85,21 +115,31 @@ export async function handler(event) {
           { role: "user", content: message },
         ],
         temperature: 0.2,
-        max_output_tokens: 400
+        max_output_tokens: 500,
+        tools: withFileSearch ? [{ type: "file_search" }] : undefined,
       };
+
+      let fileNameById = new Map();
+
+      if (withFileSearch && VECTOR_STORE_ID) {
+        const { fileIds, fileNameById: map } = await listVectorFiles(20);
+        fileNameById = map;
+        if (fileIds.length) {
+          payload.attachments = fileIds.map(fid => ({
+            file_id: fid,
+            tools: [{ type: "file_search" }],
+          }));
+        }
+      }
 
       const headers = {
         "authorization": `Bearer ${OPENAI_API_KEY}`,
         "content-type": "application/json",
       };
-
-      if (withFileSearch && VECTOR_STORE_ID) {
-        payload.tools = [{ type: "file_search" }];
-        payload.tool_resources = { file_search: { vector_store_ids: [VECTOR_STORE_ID] } };
+      if (withFileSearch) {
         headers["OpenAI-Beta"] = "assistants=v2";
       }
 
-      // Usamos fetch para ambos caminos, así es consistente
       const r = await fetch("https://api.openai.com/v1/responses", {
         method: "POST",
         headers,
@@ -117,13 +157,13 @@ export async function handler(event) {
         err.data = data;
         throw err;
       }
-      return data;
+      return { data, fileNameById };
     };
 
-    // --- 1) Intento con File Search (RAG) ---
+    // --- 1) Intento con File Search (attachments) ---
     try {
-      const resp1 = await callResponses(MODEL_PRIMARY, true);
-      const out = extract(resp1);
+      const { data: resp1, fileNameById } = await callResponses(MODEL_PRIMARY, true);
+      const out = extract(resp1, fileNameById);
       return json(200, {
         ...out,
         usedFileSearch: true,
@@ -131,40 +171,43 @@ export async function handler(event) {
         usage: resp1.usage,
       });
     } catch (e1) {
-      // si el tool no está habilitado o hay problema con el vector store → fallback sin RAG
+      // Si el tool no está habilitado en tu endpoint/modelo → fallback sin RAG
       const msg = (e1?.message || "").toLowerCase();
       const code = (e1?.code || "").toLowerCase();
-      const invalidFS =
-        msg.includes("unknown parameter: 'tool_resources'") ||
-        msg.includes("invalid value: 'file_search'") ||
+      const fsUnsupported =
         msg.includes("unrecognized tool") ||
         msg.includes("tool 'file_search' is not enabled") ||
         code === "unknown_parameter" ||
         code === "invalid_value" ||
-        code === "vector_store_not_found" ||
-        code === "not_found" ||
-        code === "permission_denied";
+        code === "permission_denied" ||
+        code === "not_found";
 
-      if (!invalidFS) throw e1;
+      if (!fsUnsupported) {
+        // errores de red u otros: sigo mostrando fallback igual para no romper UX
+        if (debug) console.error("FileSearch error (no categorizado):", e1);
+      }
 
       // --- 2) Sin File Search (fallback) ---
       try {
         let resp2;
         try {
-          resp2 = await callResponses(MODEL_PRIMARY, false);
+          const { data } = await callResponses(MODEL_PRIMARY, false);
+          resp2 = data;
         } catch (e2) {
           const notFound =
             /model not found/i.test(e2?.message || "") ||
             (e2?.code || e2?.error?.code) === "model_not_found";
-          if (notFound) resp2 = await callResponses(MODEL_FALLBACK, false);
-          else throw e2;
+          if (notFound) {
+            const { data } = await callResponses(MODEL_FALLBACK, false);
+            resp2 = data;
+          } else throw e2;
         }
         const out = extract(resp2);
         const extra = debug ? { rag_error: { status: e1.status, code: e1.code, message: e1.message, data: e1.data } } : {};
         return json(200, {
           ...out,
           usedFileSearch: false,
-          notice: "File Search no disponible en tu endpoint/API. Respuesta sin PDFs.",
+          notice: "File Search no disponible en tu endpoint/API (se respondió sin PDFs).",
           model: resp2.model,
           usage: resp2.usage,
           ...extra
