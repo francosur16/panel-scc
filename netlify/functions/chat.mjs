@@ -22,32 +22,27 @@ const json = (statusCode, obj) => ({
   body: JSON.stringify(obj),
 });
 
-// --- extraer texto + citas de un mensaje de Assistants ---
 function extractFromAssistantMessage(msg) {
   let text = "";
+  const citations = [];
+
   for (const part of msg?.content || []) {
     if (part.type === "text" && part.text?.value) {
       text += (text ? "\n" : "") + part.text.value;
-    }
-  }
-  const citations = [];
-  for (const part of msg?.content || []) {
-    if (part.type !== "text") continue;
-    const anns = part.text?.annotations || [];
-    for (const ann of anns) {
-      const fc = ann?.file_citation;
-      if (fc?.file_id) {
-        citations.push({
-          filename: fc?.filename || `file:${fc.file_id}`,
-          preview: ann?.quote || "",
-        });
+      for (const ann of part.text?.annotations || []) {
+        const fc = ann?.file_citation;
+        if (fc?.file_id) {
+          citations.push({
+            filename: fc?.filename || `file:${fc.file_id}`,
+            preview: ann?.quote || "",
+          });
+        }
       }
     }
   }
   return { text: (text || "Sin texto.").trim(), citations };
 }
 
-// --- fallback: Responses API SIN RAG ---
 async function plainResponsesFallback(client, message) {
   const payload = {
     model: MODEL_PRIMARY,
@@ -60,6 +55,7 @@ async function plainResponsesFallback(client, message) {
   };
   try {
     const resp = await client.responses.create(payload);
+    // parser robusto
     let text = (resp.output_text ?? "").toString().trim();
     if (!text && Array.isArray(resp.output)) {
       const chunks = [];
@@ -115,9 +111,9 @@ export async function handler(event) {
 
     const client = new OpenAI({ apiKey: OPENAI_API_KEY });
 
-    // --- 1) Intento con Assistants (beta) + file_search ---
+    // --- 1) Assistants (beta) + file_search ---
     try {
-      // a) Crear (o reutilizar) assistant con file_search
+      // a) Assistant con file_search
       let assistantId = ASSISTANT_ID;
       if (!assistantId) {
         const asst = await client.beta.assistants.create({
@@ -125,35 +121,37 @@ export async function handler(event) {
           model: MODEL_PRIMARY,
           instructions: systemPrompt,
           tools: [{ type: "file_search" }],
-          ...(VECTOR_STORE_ID ? { tool_resources: { file_search: { vector_store_ids: [VECTOR_STORE_ID] } } } : {}),
+          ...(VECTOR_STORE_ID
+            ? { tool_resources: { file_search: { vector_store_ids: [VECTOR_STORE_ID] } } }
+            : {}),
         });
         assistantId = asst?.id;
       }
       if (!assistantId) throw new Error("assistantId undefined");
 
-      // b) Crear thread con el mensaje del usuario
-      const threadObj = await client.beta.threads.create({
-        messages: [{ role: "user", content: message }],
-      });
-      const threadId = threadObj?.id;
-      if (!threadId || !threadId.startsWith("thread_")) {
-        throw new Error(`threadId inválido: ${threadId}`);
-      }
+      // b) Thread + mensaje del usuario
+      const thread = await client.beta.threads.create();
+      const threadId = thread?.id;
+      if (!threadId) throw new Error("threadId undefined");
 
-      // c) Run del assistant (reforzamos vector store por si acaso)
-      const runObj = await client.beta.threads.runs.create({
-        thread_id: threadId,
+      await client.beta.threads.messages.create(threadId, {
+        role: "user",
+        content: message,
+      });
+
+      // c) Run (FIRMA CORRECTA: runs.create(threadId, { ... }))
+      const run = await client.beta.threads.runs.create(threadId, {
         assistant_id: assistantId,
-        ...(VECTOR_STORE_ID ? { tool_resources: { file_search: { vector_store_ids: [VECTOR_STORE_ID] } } } : {}),
+        ...(VECTOR_STORE_ID
+          ? { tool_resources: { file_search: { vector_store_ids: [VECTOR_STORE_ID] } } }
+          : {}),
       });
-      const runId = runObj?.id;
-      if (!runId || !runId.startsWith("run_")) {
-        throw new Error(`runId inválido: ${runId}`);
-      }
+      const runId = run?.id;
+      if (!runId) throw new Error("runId undefined");
 
-      // d) Polling del run hasta completar
+      // d) Polling
       const t0 = Date.now();
-      let runStatus = runObj;
+      let runStatus = run;
       while (!["completed", "failed", "cancelled", "expired"].includes(runStatus.status)) {
         if (Date.now() - t0 > POLL_TIMEOUT_MS) throw new Error("Run timeout");
         await new Promise(r => setTimeout(r, POLL_INTERVAL_MS));
@@ -161,8 +159,8 @@ export async function handler(event) {
       }
       if (runStatus.status !== "completed") throw new Error(`Run ${runStatus.status}`);
 
-      // e) Último mensaje del assistant
-      const msgs = await client.beta.threads.messages.list(threadId, { limit: 5 });
+      // e) Mensaje final
+      const msgs = await client.beta.threads.messages.list(threadId, { limit: 10 });
       const assistantMsg = (msgs.data || []).find(m => m.role === "assistant") || msgs.data?.[0];
       const { text, citations } = extractFromAssistantMessage(assistantMsg);
 
@@ -174,7 +172,7 @@ export async function handler(event) {
         usage: undefined,
       });
     } catch (e1) {
-      // --- 2) Fallback sin RAG (Responses API) ---
+      // --- 2) Fallback sin RAG ---
       const out = await plainResponsesFallback(client, message);
       if (debug) out.rag_error = {
         status: e1?.status,
@@ -198,4 +196,3 @@ export async function handler(event) {
     return json(500, { error: "Fallo interno" });
   }
 }
-
