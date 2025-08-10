@@ -1458,11 +1458,14 @@ async function responderOperabot() {
       return;
     }
 
-    // respuesta del bot
-    const bot = document.createElement("div");
-    bot.innerHTML = `🤖 ${escapeHtml(data.text || data.answer || "(sin texto)")}`;
-    bot.style.marginBottom = "6px";
-    chatLog.appendChild(bot);
+   // respuesta del bot (limpio marcadores tipo 【...】)
+const bot = document.createElement("div");
+const rawText = data.text || data.answer || "(sin texto)";
+// borra cualquier bloque entre los corchetes anchos 【】 que mete el modelo
+const cleanedText = rawText.replace(/【[^】]*】/g, '').replace(/\s{2,}/g, ' ').trim();
+bot.innerHTML = `🤖 ${escapeHtml(cleanedText)}`;
+bot.style.marginBottom = "6px";
+chatLog.appendChild(bot);
 
     // chips de citas (si hay)
     if (Array.isArray(data.citations) && data.citations.length) {
