@@ -55,7 +55,6 @@ async function plainResponsesFallback(client, message) {
   };
   try {
     const resp = await client.responses.create(payload);
-    // parser robusto
     let text = (resp.output_text ?? "").toString().trim();
     if (!text && Array.isArray(resp.output)) {
       const chunks = [];
@@ -97,6 +96,7 @@ async function plainResponsesFallback(client, message) {
 export async function handler(event) {
   const debug = !!process.env.DEBUG;
   if (event.httpMethod === "OPTIONS") return json(204, {});
+
   try {
     if (event.httpMethod !== "POST") return json(405, { error: "Use POST" });
 
@@ -106,18 +106,21 @@ export async function handler(event) {
     let body;
     try { body = JSON.parse(event.body || "{}"); }
     catch { return json(400, { error: "JSON inválido" }); }
+
     const message = (body.message || "").toString().trim();
     if (!message) return json(400, { error: "Falta 'message'" });
 
     const client = new OpenAI({
-  apiKey: OPENAI_API_KEY,
-  defaultHeaders: { "OpenAI-Beta": "assistants=v2" },
-});
+      apiKey: OPENAI_API_KEY,
+      defaultHeaders: { "OpenAI-Beta": "assistants=v2" },
+    });
 
     // --- 1) Assistants (beta) + file_search ---
     try {
-      // a) Assistant con file_search
+      const dbg = {};
       let assistantId = ASSISTANT_ID;
+
+      // a) crear/usar assistant con file_search apuntando a tu vector store
       if (!assistantId) {
         const asst = await client.beta.assistants.create({
           name: "Operabot SCC",
@@ -130,29 +133,36 @@ export async function handler(event) {
         });
         assistantId = asst?.id;
       }
+      dbg.assistantId = assistantId;
       if (!assistantId) throw new Error("assistantId undefined");
 
-      // b) Thread + mensaje del usuario
+      // b) thread
       const thread = await client.beta.threads.create();
       const threadId = thread?.id;
+      dbg.threadId = threadId;
       if (!threadId) throw new Error("threadId undefined");
 
+      // c) agregar mensaje del usuario
       await client.beta.threads.messages.create(threadId, {
         role: "user",
         content: message,
       });
 
-      // c) Run (FIRMA CORRECTA: runs.create(threadId, { ... }))
+      // d) run (firma correcta: runs.create(threadId, {...}))
       const run = await client.beta.threads.runs.create(threadId, {
         assistant_id: assistantId,
         ...(VECTOR_STORE_ID
           ? { tool_resources: { file_search: { vector_store_ids: [VECTOR_STORE_ID] } } }
           : {}),
       });
-      const runId = run?.id;
-      if (!runId) throw new Error("runId undefined");
 
-      // d) Polling
+      const runId = run?.id;
+      dbg.runId = runId;
+      if (!runId || !/^run_/.test(runId)) {
+        throw new Error(`runId inválido: ${runId || "(vacío)"}`);
+      }
+
+      // e) polling hasta completar
       const t0 = Date.now();
       let runStatus = run;
       while (!["completed", "failed", "cancelled", "expired"].includes(runStatus.status)) {
@@ -162,18 +172,21 @@ export async function handler(event) {
       }
       if (runStatus.status !== "completed") throw new Error(`Run ${runStatus.status}`);
 
-      // e) Mensaje final
+      // f) leer último mensaje del assistant
       const msgs = await client.beta.threads.messages.list(threadId, { limit: 10 });
       const assistantMsg = (msgs.data || []).find(m => m.role === "assistant") || msgs.data?.[0];
+
       const { text, citations } = extractFromAssistantMessage(assistantMsg);
 
       return json(200, {
-        text,
-        citations,
+        ok: true,
         usedFileSearch: true,
         model: MODEL_PRIMARY,
-        usage: undefined,
+        text,
+        citations,
+        ...(debug ? { dbg } : {}),
       });
+
     } catch (e1) {
       // --- 2) Fallback sin RAG ---
       const out = await plainResponsesFallback(client, message);
@@ -185,6 +198,7 @@ export async function handler(event) {
       };
       return json(200, out);
     }
+
   } catch (err) {
     const safe = {
       message: err?.message || String(err),
