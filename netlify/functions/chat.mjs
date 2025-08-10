@@ -3,7 +3,7 @@ import OpenAI from "openai";
 
 const MODEL_PRIMARY = "gpt-4o-mini";
 const MODEL_FALLBACK = "gpt-4o";
-const POLL_TIMEOUT_MS = 60000; // no usado, pero lo dejo por si luego lo necesitas
+// (POLL_TIMEOUT_MS no usado; createAndPoll ya espera hasta completar)
 
 const systemPrompt = `Sos Operabot SCC. Respondé usando los instructivos (PDFs) cuando sea posible.
 - Si hay respuesta en los PDFs, citá los archivos relevantes (solo nombre).
@@ -17,10 +17,12 @@ const json = (statusCode, obj) => ({
     "content-type": "application/json; charset=utf-8",
     "access-control-allow-origin": "*",
     "access-control-allow-methods": "POST, OPTIONS",
+    "access-control-allow-headers": "*",
   },
   body: JSON.stringify(obj),
 });
 
+// Extrae texto + citas (conservando file_id para poder resolver nombre luego)
 function extractFromAssistantMessage(msg) {
   let text = "";
   const citations = [];
@@ -31,6 +33,7 @@ function extractFromAssistantMessage(msg) {
         const fc = ann?.file_citation;
         if (fc?.file_id) {
           citations.push({
+            file_id: fc.file_id,
             filename: fc?.filename || `file:${fc.file_id}`,
             preview: ann?.quote || "",
           });
@@ -39,6 +42,32 @@ function extractFromAssistantMessage(msg) {
     }
   }
   return { text: (text || "Sin texto.").trim(), citations };
+}
+
+// Resuelve cada file_id -> filename real (para que el frontend pueda mapear al PDF)
+async function enrichCitationFilenames(client, citations = []) {
+  if (!Array.isArray(citations) || !citations.length) return [];
+  const byId = new Map();
+  const out = [];
+  for (const c of citations) {
+    let filename = c.filename || "";
+    if (!filename || filename.startsWith("file:")) {
+      const id = c.file_id || (filename.startsWith("file:") ? filename.slice(5) : "");
+      if (id) {
+        if (!byId.has(id)) {
+          try {
+            const f = await client.files.retrieve(id);
+            byId.set(id, f?.filename || filename);
+          } catch {
+            byId.set(id, filename);
+          }
+        }
+        filename = byId.get(id) || filename;
+      }
+    }
+    out.push({ ...c, filename });
+  }
+  return out;
 }
 
 async function plainResponsesFallback(client, message) {
@@ -74,7 +103,10 @@ async function plainResponsesFallback(client, message) {
       citations: [],
     };
   } catch (e2) {
-    if (/model not found/i.test(e2?.message || "") || (e2?.code || e2?.error?.code) === "model_not_found") {
+    const notFound =
+      /model not found/i.test(e2?.message || "") ||
+      (e2?.code || e2?.error?.code) === "model_not_found";
+    if (notFound) {
       const resp2 = await client.responses.create({ ...payload, model: MODEL_FALLBACK });
       const text2 = (resp2.output_text ?? "").toString().trim() || "(sin texto)";
       return {
@@ -101,8 +133,11 @@ export async function handler(event) {
     if (!OPENAI_API_KEY) return json(500, { error: "Falta OPENAI_API_KEY" });
 
     let body;
-    try { body = JSON.parse(event.body || "{}"); }
-    catch { return json(400, { error: "JSON inválido" }); }
+    try {
+      body = JSON.parse(event.body || "{}");
+    } catch {
+      return json(400, { error: "JSON inválido" });
+    }
     const message = (body.message || "").toString().trim();
     if (!message) return json(400, { error: "Falta 'message'" });
 
@@ -111,7 +146,7 @@ export async function handler(event) {
       defaultHeaders: { "OpenAI-Beta": "assistants=v2" },
     });
 
-    // --- 1) Assistants v2 + File Search con createAndPoll (sin 'timeout') ---
+    // --- 1) Assistants v2 + File Search (createAndPoll) ---
     try {
       const dbg = {};
       let assistantId = ASSISTANT_ID;
@@ -155,32 +190,36 @@ export async function handler(event) {
         throw new Error(`Run ${run.status}`);
       }
 
-      const msgs = await client.beta.threads.messages.list(threadId, { order: "desc", limit: 5 });
-      const assistantMsg = (msgs.data || []).find(m => m.role === "assistant") || msgs.data?.[0];
+      const msgs = await client.beta.threads.messages.list(threadId, {
+        order: "desc",
+        limit: 10,
+      });
+      const assistantMsg =
+        (msgs.data || []).find((m) => m.role === "assistant") || msgs.data?.[0];
+
       const { text, citations } = extractFromAssistantMessage(assistantMsg);
+      const enriched = await enrichCitationFilenames(client, citations);
 
       return json(200, {
         ok: true,
         usedFileSearch: true,
         model: MODEL_PRIMARY,
         text,
-        citations,
+        citations: enriched,
         ...(debug ? { diag: dbg } : {}),
       });
-
     } catch (e1) {
+      // --- 2) Fallback sin RAG ---
       const out = await plainResponsesFallback(client, message);
-      if (debug) {
+      if (debug)
         out.rag_error = {
           status: e1?.status,
           code: e1?.code || e1?.error?.code,
           message: e1?.message,
           data: e1?.data || e1?.error,
         };
-      }
       return json(200, out);
     }
-
   } catch (err) {
     const safe = {
       message: err?.message || String(err),
@@ -195,4 +234,3 @@ export async function handler(event) {
     return json(500, { error: "Fallo interno" });
   }
 }
-
