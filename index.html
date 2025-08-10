@@ -1293,7 +1293,7 @@ const opciones = [
   { nombre: "Procedimiento CBVZ", url: "documentos/proceso_a.pdf" },
   { nombre: "Links útiles", url: "documentos/links_utiles.pdf" },
   { nombre: "Speeches", url: "documentos/Speeches.pdf" },
-  { nombre: "Personal que autoriza", url: "documentos/Personal que autoriza.pdf" },
+  { nombre: "Personal que autoriza", url: "documentos/personal-que-autoriza.pdf" },
   { nombre: "Acceso a data Q", url: "documentos/Acceso a data Q.pdf" },
   { nombre: "QR", url: "documentos/QR.pdf" },
   { nombre: "Entrega de llaves", url: "documentos/Llaves.pdf" },
@@ -1302,6 +1302,26 @@ const opciones = [
   { nombre: "Ticket panel caído", url: "documentos/panel_caido.pdf" },
   { nombre: "Reporte de marcaciones", url: "documentos/marcaciones.pdf" }
 ];
+
+// Normaliza a "clave" comparable: basename, sin extensión, sin acentos ni símbolos
+function normalizeBase(s) {
+  return String(s || "")
+    .toLowerCase()
+    .split('/').pop()                // basename
+    .replace(/\.[a-z0-9]+$/, '')     // sin extensión
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'') // sin acentos
+    .replace(/[^a-z0-9]/g,'');       // solo alfanum
+}
+
+// Índice rápido: (basename de url) y (basename del nombre visible) → URL
+const pdfIndex = {};
+opciones.forEach(op => {
+  const byUrlBase  = normalizeBase(op.url);
+  const byNameBase = normalizeBase(op.nombre);
+  pdfIndex[byUrlBase]  = op.url;
+  pdfIndex[byNameBase] = op.url;
+});
+
 
 const buscador = document.getElementById("buscador");
 const resultados = document.getElementById("resultados");
@@ -1383,27 +1403,21 @@ function escapeHtml(s) {
   }[c]));
 }
 
-// Mapea el nombre citado -> URL de tu array `opciones`
 function urlDesdeCita(filename) {
   if (!filename) return null;
-  const norm = (t) => String(t).toLowerCase()
-    .normalize('NFD').replace(/[\u0300-\u036f]/g,'') // sin acentos
-    .replace(/\.[a-z0-9]+$/,'')                      // sin extensión
-    .replace(/[^a-z0-9]/g,'');                       // solo alfanum
+  const key = normalizeBase(filename);
 
-  const nfile = norm(filename);
+  // 1) match directo contra el índice
+  if (pdfIndex[key]) return pdfIndex[key];
 
-  // 1) match por nombre visible
-  let hit = opciones.find(op => {
-    const n = norm(op.nombre);
-    return n.includes(nfile) || nfile.includes(n);
+  // 2) fallback aproximado por si cambia un poco el nombre
+  const hit = opciones.find(op => {
+    const base = normalizeBase(op.url);
+    return base.includes(key) || key.includes(base);
   });
-  if (hit) return hit.url;
-
-  // 2) intento por URL
-  hit = opciones.find(op => nfile.includes(norm(op.url)));
   return hit ? hit.url : null;
 }
+
 
 async function responderOperabot() {
   const input = document.getElementById("inputOperabot");
