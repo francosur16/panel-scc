@@ -1,6 +1,7 @@
 // netlify/functions/chat.mjs
+
 const MODEL_PRIMARY = "gpt-4o-mini";
-const MODEL_FALLBACK = "gpt-4o"; // por si el primary no está disponible
+const MODEL_FALLBACK = "gpt-4o";
 
 export async function handler(event) {
   const debug = !!process.env.DEBUG;
@@ -12,7 +13,6 @@ export async function handler(event) {
 
     const { OPENAI_API_KEY, VECTOR_STORE_ID } = process.env;
     if (!OPENAI_API_KEY) return json(500, { error: "Falta OPENAI_API_KEY" });
-    if (!VECTOR_STORE_ID) return json(500, { error: "Falta VECTOR_STORE_ID" });
 
     let body;
     try { body = JSON.parse(event.body || "{}"); }
@@ -22,30 +22,39 @@ export async function handler(event) {
     if (!message) return json(400, { error: "Falta 'message'" });
 
     const systemPrompt =
-`Eres Operabot SCC. Responde usando los instructivos adjuntos (PDFs).
+`Eres Operabot SCC. Responde usando los instructivos adjuntos (PDFs) cuando puedas.
 - Si hay respuesta en los PDFs, cita los archivos relevantes (solo nombre).
 - Si detectas contradicciones entre PDFs, dilo y sugiere cómo resolver.
 - Si no está en los PDFs, responde con criterio y aclara "(criterio / no hallado en instructivos)".
 - Responde breve y práctico.`;
 
-    const makeReq = async (model) => {
+    // --- helpers ---
+    const callResponses = async (model, withFileSearch) => {
+      const headers = {
+        "authorization": `Bearer ${OPENAI_API_KEY}`,
+        "content-type": "application/json",
+        // intentamos con etiquetas beta por compatibilidad en algunas cuentas
+        "OpenAI-Beta": "assistants=v2, responses-2024-12-17"
+      };
+
+      const payload = {
+        model,
+        input: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: message }
+        ],
+        temperature: 0.2
+      };
+
+      if (withFileSearch && VECTOR_STORE_ID) {
+        payload.tools = [{ type: "file_search" }];
+        payload.tool_resources = { file_search: { vector_store_ids: [VECTOR_STORE_ID] } };
+      }
+
       const r = await fetch("https://api.openai.com/v1/responses", {
         method: "POST",
-        headers: {
-          "authorization": `Bearer ${OPENAI_API_KEY}`,
-          "content-type": "application/json"
-        },
-        body: JSON.stringify({
-          model,
-          input: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: message }
-          ],
-          tools: [{ type: "file_search" }],
-          tool_resources: { file_search: { vector_store_ids: [VECTOR_STORE_ID] } },
-          temperature: 0.2
-          // max_output_tokens: 500, // opcional
-        })
+        headers,
+        body: JSON.stringify(payload)
       });
 
       const text = await r.text();
@@ -62,37 +71,61 @@ export async function handler(event) {
       return data;
     };
 
-    // intento con primary y fallback si hace falta
-    let resp;
+    const extract = (resp) => {
+      const text =
+        resp.output_text ||
+        resp.output?.[0]?.content?.[0]?.text?.value ||
+        "Sin respuesta.";
+
+      const annotations = resp.output?.[0]?.content?.[0]?.text?.annotations || [];
+      const citations = [];
+      for (const ann of annotations) {
+        const fc = ann?.file_citation;
+        if (fc?.file_id) {
+          citations.push({
+            filename: fc?.filename || `file:${fc.file_id}`,
+            preview: ann?.quote || ""
+          });
+        }
+      }
+      return { text, citations };
+    };
+
+    // --- intento 1: con File Search ---
     try {
-      resp = await makeReq(MODEL_PRIMARY);
-    } catch (e) {
-      if (isModelNotFound(e)) {
-        resp = await makeReq(MODEL_FALLBACK);
-      } else {
-        throw e;
+      const resp1 = await callResponses(MODEL_PRIMARY, true);
+      return json(200, { ...extract(resp1), usedFileSearch: true });
+    } catch (e1) {
+      // si es rechazo por parámetros de file_search/tool_resources, probamos sin File Search
+      const msg = (e1?.message || "").toLowerCase();
+      const code = (e1?.code || "").toLowerCase();
+      const invalidFS =
+        msg.includes("unknown parameter: 'tool_resources'") ||
+        msg.includes("invalid value: 'file_search'") ||
+        code === "unknown_parameter" ||
+        code === "invalid_value";
+
+      if (!invalidFS) throw e1;
+
+      // --- intento 2: sin File Search (fallback) ---
+      try {
+        let resp2;
+        try {
+          resp2 = await callResponses(MODEL_PRIMARY, false);
+        } catch (e2) {
+          if (isModelNotFound(e2)) {
+            resp2 = await callResponses(MODEL_FALLBACK, false);
+          } else throw e2;
+        }
+
+        const out = extract(resp2);
+        out.usedFileSearch = false;
+        out.notice = "File Search no disponible en tu endpoint/API. Respuesta sin PDFs.";
+        return json(200, out);
+      } catch (e2) {
+        throw e2;
       }
     }
-
-    const text =
-      resp.output_text ||
-      resp.output?.[0]?.content?.[0]?.text?.value ||
-      "Sin respuesta.";
-
-    // citas si vinieran
-    const annotations = resp.output?.[0]?.content?.[0]?.text?.annotations || [];
-    const citations = [];
-    for (const ann of annotations) {
-      const fc = ann?.file_citation;
-      if (fc?.file_id) {
-        citations.push({
-          filename: fc?.filename || `file:${fc.file_id}`,
-          preview: ann?.quote || ""
-        });
-      }
-    }
-
-    return json(200, { text, citations });
   } catch (err) {
     const safe = {
       message: err?.message || String(err),
@@ -120,8 +153,6 @@ function json(statusCode, obj) {
       "content-type": "application/json; charset=utf-8",
       "access-control-allow-origin": "*",
       "access-control-allow-methods": "POST, OPTIONS",
-      "OpenAI-Beta": "responses-2024-12-17",
-
     },
     body: JSON.stringify(obj),
   };
