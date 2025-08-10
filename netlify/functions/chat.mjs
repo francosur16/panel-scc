@@ -64,8 +64,7 @@ async function plainResponsesFallback(client, message) {
     if (!text && Array.isArray(resp.output)) {
       const chunks = [];
       for (const item of resp.output) {
-        const parts = Array.isArray(item?.content) ? item.content : [];
-        for (const p of parts) {
+        for (const p of (item?.content || [])) {
           const maybe = p?.text?.value ?? p?.text ?? "";
           if (maybe) chunks.push(String(maybe));
         }
@@ -128,32 +127,42 @@ export async function handler(event) {
           tools: [{ type: "file_search" }],
           ...(VECTOR_STORE_ID ? { tool_resources: { file_search: { vector_store_ids: [VECTOR_STORE_ID] } } } : {}),
         });
-        assistantId = asst.id;
+        assistantId = asst?.id;
       }
+      if (!assistantId) throw new Error("assistantId undefined");
 
       // b) Crear thread con el mensaje del usuario
-      const thread = await client.beta.threads.create({
+      const threadObj = await client.beta.threads.create({
         messages: [{ role: "user", content: message }],
       });
+      const threadId = threadObj?.id;
+      if (!threadId || !threadId.startsWith("thread_")) {
+        throw new Error(`threadId inválido: ${threadId}`);
+      }
 
-      // c) Run del assistant (re-reforzamos vector store por si el asst no lo tuviera)
-      const run = await client.beta.threads.runs.create(thread.id, {
+      // c) Run del assistant (reforzamos vector store por si acaso)
+      const runObj = await client.beta.threads.runs.create({
+        thread_id: threadId,
         assistant_id: assistantId,
         ...(VECTOR_STORE_ID ? { tool_resources: { file_search: { vector_store_ids: [VECTOR_STORE_ID] } } } : {}),
       });
+      const runId = runObj?.id;
+      if (!runId || !runId.startsWith("run_")) {
+        throw new Error(`runId inválido: ${runId}`);
+      }
 
-      // d) Polling del run
+      // d) Polling del run hasta completar
       const t0 = Date.now();
-      let runStatus = run;
+      let runStatus = runObj;
       while (!["completed", "failed", "cancelled", "expired"].includes(runStatus.status)) {
         if (Date.now() - t0 > POLL_TIMEOUT_MS) throw new Error("Run timeout");
         await new Promise(r => setTimeout(r, POLL_INTERVAL_MS));
-        runStatus = await client.beta.threads.runs.retrieve(thread.id, run.id);
+        runStatus = await client.beta.threads.runs.retrieve(threadId, runId);
       }
       if (runStatus.status !== "completed") throw new Error(`Run ${runStatus.status}`);
 
       // e) Último mensaje del assistant
-      const msgs = await client.beta.threads.messages.list(thread.id, { limit: 5 });
+      const msgs = await client.beta.threads.messages.list(threadId, { limit: 5 });
       const assistantMsg = (msgs.data || []).find(m => m.role === "assistant") || msgs.data?.[0];
       const { text, citations } = extractFromAssistantMessage(assistantMsg);
 
