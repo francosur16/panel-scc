@@ -1377,42 +1377,120 @@ function abrirOperabot() {
   }, 800);
 }
 
-function cerrarOperabot() {
-  const chat = document.getElementById("chatOperabot");
-  const fondo = document.getElementById("fondoOperabot");
-  chat.style.display = "none";
-  fondo.style.display = "none";
-  document.body.style.overflow = "";
+function escapeHtml(s) {
+  return (s || "").replace(/[&<>"']/g, c => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+  }[c]));
 }
 
-function responderOperabot() {
+// Mapea el nombre citado -> URL de tu array `opciones`
+function urlDesdeCita(filename) {
+  if (!filename) return null;
+  const norm = (t) => String(t).toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'') // sin acentos
+    .replace(/\.[a-z0-9]+$/,'')                      // sin extensión
+    .replace(/[^a-z0-9]/g,'');                       // solo alfanum
+
+  const nfile = norm(filename);
+
+  // 1) match por nombre visible
+  let hit = opciones.find(op => {
+    const n = norm(op.nombre);
+    return n.includes(nfile) || nfile.includes(n);
+  });
+  if (hit) return hit.url;
+
+  // 2) intento por URL
+  hit = opciones.find(op => nfile.includes(norm(op.url)));
+  return hit ? hit.url : null;
+}
+
+async function responderOperabot() {
   const input = document.getElementById("inputOperabot");
   const chatLog = document.getElementById("chatLog");
-  const pregunta = input.value.trim();
-
+  const pregunta = (input.value || "").trim();
   if (!pregunta) return;
 
-  // Mostrar pregunta
+  // mensaje usuario
   const userMsg = document.createElement("div");
   userMsg.textContent = `🙋 ${pregunta}`;
   userMsg.style.marginBottom = "8px";
   chatLog.appendChild(userMsg);
 
-const respuesta = document.createElement("div");
-respuesta.textContent = `🔧🤖 Todavía estoy aprendiendo, ¡pronto podré responder todas tus preguntas!`;
-respuesta.style.marginBottom = "12px";
-respuesta.classList.add("respuesta-entrenando");
-chatLog.appendChild(respuesta);
+  // indicador pensando
+  const thinking = document.createElement("div");
+  thinking.innerHTML = `🤖 <span class="respuesta-entrenando">Pensando…</span>`;
+  thinking.style.marginBottom = "12px";
+  chatLog.appendChild(thinking);
 
   input.value = "";
   chatLog.scrollTop = chatLog.scrollHeight;
-}
-document.getElementById("inputOperabot").addEventListener("keydown", function(e) {
-  if (e.key === "Enter") {
-    responderOperabot();
-  }
-});
 
-  </script>
+  try {
+    const r = await fetch('/.netlify/functions/chat', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ message: pregunta })
+    });
+    const data = await r.json();
+    thinking.remove();
+
+    if (!r.ok) {
+      const errDiv = document.createElement("div");
+      errDiv.textContent = `❌ ${data?.error || `Error HTTP ${r.status}`}`;
+      errDiv.style.marginBottom = "12px";
+      chatLog.appendChild(errDiv);
+      chatLog.scrollTop = chatLog.scrollHeight;
+      return;
+    }
+
+    // respuesta del bot
+    const bot = document.createElement("div");
+    bot.innerHTML = `🤖 ${escapeHtml(data.text || data.answer || "(sin texto)")}`;
+    bot.style.marginBottom = "6px";
+    chatLog.appendChild(bot);
+
+    // chips de citas (si hay)
+    if (Array.isArray(data.citations) && data.citations.length) {
+      const wrap = document.createElement("div");
+      wrap.style.display = "flex";
+      wrap.style.flexWrap = "wrap";
+      wrap.style.gap = "6px";
+      wrap.style.margin = "6px 0 12px 0";
+
+      data.citations.forEach(c => {
+        const chip = document.createElement("button");
+        chip.type = "button";
+        chip.textContent = c.filename || "cita";
+        chip.style.border = "1px solid goldenrod";
+        chip.style.background = "white";
+        chip.style.color = "#2d537a";
+        chip.style.padding = "4px 8px";
+        chip.style.borderRadius = "999px";
+        chip.style.cursor = "pointer";
+        chip.style.fontSize = "12px";
+        chip.addEventListener("click", () => {
+          const url = urlDesdeCita(c.filename);
+          if (url) abrirModalPDF(url);
+          else alert("No pude mapear la cita a un PDF local.\nArchivo citado: " + (c.filename || ""));
+        });
+        wrap.appendChild(chip);
+      });
+
+      chatLog.appendChild(wrap);
+    }
+
+    chatLog.scrollTop = chatLog.scrollHeight;
+
+  } catch (e) {
+    thinking.remove();
+    const errDiv = document.createElement("div");
+    errDiv.textContent = `❌ Error: ${e?.message || e}`;
+    errDiv.style.marginBottom = "12px";
+    chatLog.appendChild(errDiv);
+    chatLog.scrollTop = chatLog.scrollHeight;
+  }
+}
+</script>
 </body>
 </html>
