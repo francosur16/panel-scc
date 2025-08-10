@@ -24,15 +24,12 @@ const json = (statusCode, obj) => ({
 
 // --- extraer texto + citas de un mensaje de Assistants ---
 function extractFromAssistantMessage(msg) {
-  // Texto
   let text = "";
   for (const part of msg?.content || []) {
     if (part.type === "text" && part.text?.value) {
       text += (text ? "\n" : "") + part.text.value;
     }
   }
-
-  // Citas (annotations)
   const citations = [];
   for (const part of msg?.content || []) {
     if (part.type !== "text") continue;
@@ -47,7 +44,7 @@ function extractFromAssistantMessage(msg) {
       }
     }
   }
-  return { text: text.trim() || "Sin texto.", citations };
+  return { text: (text || "Sin texto.").trim(), citations };
 }
 
 // --- fallback: Responses API SIN RAG ---
@@ -63,7 +60,6 @@ async function plainResponsesFallback(client, message) {
   };
   try {
     const resp = await client.responses.create(payload);
-    // parser robusto
     let text = (resp.output_text ?? "").toString().trim();
     if (!text && Array.isArray(resp.output)) {
       const chunks = [];
@@ -86,10 +82,9 @@ async function plainResponsesFallback(client, message) {
       citations: [],
     };
   } catch (e2) {
-    // Fallback a modelo alternativo si hiciera falta
     if (/model not found/i.test(e2?.message || "") || (e2?.code || e2?.error?.code) === "model_not_found") {
       const resp2 = await client.responses.create({ ...payload, model: MODEL_FALLBACK });
-      const text2 = resp2.output_text?.trim() || "(sin texto)";
+      const text2 = (resp2.output_text ?? "").toString().trim() || "(sin texto)";
       return {
         ok: true,
         usedFileSearch: false,
@@ -121,48 +116,44 @@ export async function handler(event) {
 
     const client = new OpenAI({ apiKey: OPENAI_API_KEY });
 
-    // --- 1) Intento con Assistants v2 + file_search ---
+    // --- 1) Intento con Assistants (beta) + file_search ---
     try {
-      // a) Crear (o reutilizar) un assistant con file_search
+      // a) Crear (o reutilizar) assistant con file_search
       let assistantId = ASSISTANT_ID;
       if (!assistantId) {
-        const asst = await client.assistants.create({
+        const asst = await client.beta.assistants.create({
           name: "Operabot SCC",
           model: MODEL_PRIMARY,
           instructions: systemPrompt,
           tools: [{ type: "file_search" }],
-          // Adjuntamos el vector store a nivel assistant si está disponible
           ...(VECTOR_STORE_ID ? { tool_resources: { file_search: { vector_store_ids: [VECTOR_STORE_ID] } } } : {}),
-          // El SDK maneja los headers beta internamente
         });
         assistantId = asst.id;
       }
 
       // b) Crear thread con el mensaje del usuario
-      const thread = await client.threads.create({
+      const thread = await client.beta.threads.create({
         messages: [{ role: "user", content: message }],
       });
 
-      // c) Correr el assistant (extra: reforzamos vector store también en el run por si el assistant no lo tenía)
-      const run = await client.threads.runs.create(thread.id, {
+      // c) Run del assistant (re-reforzamos vector store por si el asst no lo tuviera)
+      const run = await client.beta.threads.runs.create(thread.id, {
         assistant_id: assistantId,
         ...(VECTOR_STORE_ID ? { tool_resources: { file_search: { vector_store_ids: [VECTOR_STORE_ID] } } } : {}),
       });
 
-      // d) Polling hasta completar
+      // d) Polling del run
       const t0 = Date.now();
       let runStatus = run;
       while (!["completed", "failed", "cancelled", "expired"].includes(runStatus.status)) {
         if (Date.now() - t0 > POLL_TIMEOUT_MS) throw new Error("Run timeout");
         await new Promise(r => setTimeout(r, POLL_INTERVAL_MS));
-        runStatus = await client.threads.runs.retrieve(thread.id, run.id);
+        runStatus = await client.beta.threads.runs.retrieve(thread.id, run.id);
       }
-      if (runStatus.status !== "completed") {
-        throw new Error(`Run ${runStatus.status}`);
-      }
+      if (runStatus.status !== "completed") throw new Error(`Run ${runStatus.status}`);
 
-      // e) Recuperar el último mensaje del assistant
-      const msgs = await client.threads.messages.list(thread.id, { limit: 5 });
+      // e) Último mensaje del assistant
+      const msgs = await client.beta.threads.messages.list(thread.id, { limit: 5 });
       const assistantMsg = (msgs.data || []).find(m => m.role === "assistant") || msgs.data?.[0];
       const { text, citations } = extractFromAssistantMessage(assistantMsg);
 
@@ -171,7 +162,7 @@ export async function handler(event) {
         citations,
         usedFileSearch: true,
         model: MODEL_PRIMARY,
-        usage: undefined, // opcional, podríamos sumar usage leyendo run.metrics cuando esté disponible
+        usage: undefined,
       });
     } catch (e1) {
       // --- 2) Fallback sin RAG (Responses API) ---
