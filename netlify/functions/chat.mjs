@@ -109,7 +109,10 @@ export async function handler(event) {
     const message = (body.message || "").toString().trim();
     if (!message) return json(400, { error: "Falta 'message'" });
 
-    const client = new OpenAI({ apiKey: OPENAI_API_KEY });
+    const client = new OpenAI({
+  apiKey: OPENAI_API_KEY,
+  defaultHeaders: { "OpenAI-Beta": "assistants=v2" },
+});
 
     // --- 1) Assistants (beta) + file_search ---
     try {
