@@ -3,7 +3,7 @@ import OpenAI from "openai";
 
 const MODEL_PRIMARY = "gpt-4o-mini";
 const MODEL_FALLBACK = "gpt-4o";
-const POLL_TIMEOUT_MS = 60000; // 60s
+const POLL_TIMEOUT_MS = 60000; // no usado, pero lo dejo por si luego lo necesitas
 
 const systemPrompt = `Sos Operabot SCC. Respondé usando los instructivos (PDFs) cuando sea posible.
 - Si hay respuesta en los PDFs, citá los archivos relevantes (solo nombre).
@@ -111,7 +111,7 @@ export async function handler(event) {
       defaultHeaders: { "OpenAI-Beta": "assistants=v2" },
     });
 
-    // --- 1) Assistants v2 + File Search con createAndPoll ---
+    // --- 1) Assistants v2 + File Search con createAndPoll (sin 'timeout') ---
     try {
       const dbg = {};
       let assistantId = ASSISTANT_ID;
@@ -131,7 +131,6 @@ export async function handler(event) {
       dbg.assistantId = assistantId;
       if (!assistantId) throw new Error("assistantId undefined");
 
-      // IMPORTANTE: pasar {} explícito
       const thread = await client.beta.threads.create({});
       const threadId = thread?.id;
       dbg.threadId = threadId;
@@ -142,14 +141,11 @@ export async function handler(event) {
         content: message,
       });
 
-      // ✅ createAndPoll evita el retrieve manual
       const run = await client.beta.threads.runs.createAndPoll(threadId, {
         assistant_id: assistantId,
         ...(VECTOR_STORE_ID
           ? { tool_resources: { file_search: { vector_store_ids: [VECTOR_STORE_ID] } } }
           : {}),
-        // por si tu cuenta demora, cortamos manualmente
-        timeout: POLL_TIMEOUT_MS,
       });
 
       const runId = run?.id;
@@ -199,3 +195,4 @@ export async function handler(event) {
     return json(500, { error: "Fallo interno" });
   }
 }
+
