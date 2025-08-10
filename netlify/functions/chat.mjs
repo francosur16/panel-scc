@@ -22,26 +22,20 @@ const json = (statusCode, obj) => ({
 
 // ---- Parser robusto para Responses API ----
 function extract(resp) {
-  // 1) intento directo (forma canónica de Responses)
   let text = (resp?.output_text ?? "").toString().trim();
 
-  // 2) si no vino output_text, recorrer todas las partes de output
   if (!text && Array.isArray(resp?.output)) {
     const chunks = [];
     for (const item of resp.output) {
       const parts = Array.isArray(item?.content) ? item.content : [];
       for (const p of parts) {
-        const maybe =
-          p?.text?.value ?? // part.type === "output_text"
-          p?.text ??         // algunos SDKs devuelven .text plano
-          "";
+        const maybe = p?.text?.value ?? p?.text ?? "";
         if (maybe) chunks.push(String(maybe));
       }
     }
     text = chunks.join("\n").trim();
   }
 
-  // 3) extraer citas (annotations) si existen en cualquiera de las partes
   const citations = [];
   try {
     for (const item of resp?.output || []) {
@@ -58,9 +52,7 @@ function extract(resp) {
         }
       }
     }
-  } catch {
-    // no-op
-  }
+  } catch {}
 
   return { text: text || "Sin texto.", citations };
 }
@@ -68,9 +60,7 @@ function extract(resp) {
 export async function handler(event) {
   const debug = !!process.env.DEBUG;
 
-  if (event.httpMethod === "OPTIONS") {
-    return json(204, {});
-  }
+  if (event.httpMethod === "OPTIONS") return json(204, {});
   try {
     if (event.httpMethod !== "POST") return json(405, { error: "Use POST" });
 
@@ -78,17 +68,15 @@ export async function handler(event) {
     if (!OPENAI_API_KEY) return json(500, { error: "Falta OPENAI_API_KEY" });
 
     let body;
-    try {
-      body = JSON.parse(event.body || "{}");
-    } catch {
-      return json(400, { error: "JSON inválido" });
-    }
+    try { body = JSON.parse(event.body || "{}"); }
+    catch { return json(400, { error: "JSON inválido" }); }
 
     const message = (body.message || "").toString().trim();
     if (!message) return json(400, { error: "Falta 'message'" });
 
     const client = new OpenAI({ apiKey: OPENAI_API_KEY });
 
+    // Con RAG: usamos fetch directo con Header Beta para asegurar que el tool esté habilitado
     const callResponses = async (model, withFileSearch) => {
       const payload = {
         model,
@@ -97,16 +85,39 @@ export async function handler(event) {
           { role: "user", content: message },
         ],
         temperature: 0.2,
-        max_output_tokens: 400,
+        max_output_tokens: 400
+      };
+
+      const headers = {
+        "authorization": `Bearer ${OPENAI_API_KEY}`,
+        "content-type": "application/json",
       };
 
       if (withFileSearch && VECTOR_STORE_ID) {
         payload.tools = [{ type: "file_search" }];
         payload.tool_resources = { file_search: { vector_store_ids: [VECTOR_STORE_ID] } };
+        headers["OpenAI-Beta"] = "assistants=v2";
       }
 
-      const resp = await client.responses.create(payload);
-      return resp;
+      // Usamos fetch para ambos caminos, así es consistente
+      const r = await fetch("https://api.openai.com/v1/responses", {
+        method: "POST",
+        headers,
+        body: JSON.stringify(payload),
+      });
+
+      const raw = await r.text();
+      let data;
+      try { data = JSON.parse(raw); } catch { data = { raw }; }
+
+      if (!r.ok) {
+        const err = new Error(`${r.status} ${data?.error?.message || "API error"}`);
+        err.status = r.status;
+        err.code = data?.error?.code;
+        err.data = data;
+        throw err;
+      }
+      return data;
     };
 
     // --- 1) Intento con File Search (RAG) ---
@@ -120,16 +131,19 @@ export async function handler(event) {
         usage: resp1.usage,
       });
     } catch (e1) {
-      // Si el endpoint/modelo no acepta file_search/tool_resources → fallback sin RAG
+      // si el tool no está habilitado o hay problema con el vector store → fallback sin RAG
       const msg = (e1?.message || "").toLowerCase();
-      const code = (e1?.error?.code || e1?.code || "").toLowerCase();
+      const code = (e1?.code || "").toLowerCase();
       const invalidFS =
         msg.includes("unknown parameter: 'tool_resources'") ||
         msg.includes("invalid value: 'file_search'") ||
         msg.includes("unrecognized tool") ||
         msg.includes("tool 'file_search' is not enabled") ||
         code === "unknown_parameter" ||
-        code === "invalid_value";
+        code === "invalid_value" ||
+        code === "vector_store_not_found" ||
+        code === "not_found" ||
+        code === "permission_denied";
 
       if (!invalidFS) throw e1;
 
@@ -146,12 +160,14 @@ export async function handler(event) {
           else throw e2;
         }
         const out = extract(resp2);
+        const extra = debug ? { rag_error: { status: e1.status, code: e1.code, message: e1.message, data: e1.data } } : {};
         return json(200, {
           ...out,
           usedFileSearch: false,
           notice: "File Search no disponible en tu endpoint/API. Respuesta sin PDFs.",
           model: resp2.model,
           usage: resp2.usage,
+          ...extra
         });
       } catch (e2) {
         throw e2;
