@@ -689,9 +689,10 @@
   background-color: rgba(0, 0, 0, 0.2);
   backdrop-filter: blur(2px);
   display: none;
-  z-index: 9998; /* ⬅️ debajo del chat */
-  pointer-events: none; /* ⬅️ no bloquea clics */
+  z-index: 9998; /* debajo del chat */
+  pointer-events: auto; /* ⬅️ ahora sí bloquea clics del fondo */
 }
+
 
 @keyframes aparecer {
   from { transform: scale(0); opacity: 0; }
@@ -986,15 +987,6 @@
   </div>
 </div>
 </div>
-
-<div id="fondoOperabot" style="
-  position: fixed;
-  inset: 0;
-  background-color: rgba(0, 0, 0, 0.2);
-  backdrop-filter: blur(2px);
-  display: none;
-  z-index: 9998;
-"></div>
 
   <script>
 
@@ -1396,6 +1388,28 @@ function abrirOperabot() {
     icono.classList.remove("botAnimado");
   }, 800);
 }
+
+function cerrarOperabot() {
+  const chat  = document.getElementById("chatOperabot");
+  const fondo = document.getElementById("fondoOperabot");
+
+  // ocultar chat y fondo
+  chat.style.display  = "none";
+  fondo.style.display = "none";
+
+  // volver a habilitar el scroll del body
+  document.body.style.overflow = "";
+}
+
+// Cerrar haciendo click en el fondo difuminado
+document.addEventListener("DOMContentLoaded", () => {
+  const fondo = document.getElementById("fondoOperabot");
+  if (fondo) {
+    fondo.addEventListener("click", (e) => {
+      if (e.target === fondo) cerrarOperabot();
+    });
+  }
+});
 
 function escapeHtml(s) {
   return (s || "").replace(/[&<>"']/g, c => ({
