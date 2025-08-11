@@ -3,16 +3,14 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
-  "scripts": {
-    "start": "npx -y netlify-cli dev",
-    "build": "echo \"No build step\""
-  },
+"scripts": {
+  "start": "npx -y netlify-cli dev",
+  "build": "echo \"No build step\""
+},
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "openai": "^5.12.2",
-    "@netlify/blobs": "^8.1.0"
+    "openai": "^5.12.2"
   }
 }
-
