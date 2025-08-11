@@ -979,10 +979,15 @@
       </div>
     </div>
 
-    <div style="padding: 10px; display: flex; gap: 6px;">
-      <input id="inputOperabot" type="text" placeholder="Escribí tu pregunta..." style="flex: 1; padding: 8px; border-radius: 6px; border: 1px solid goldenrod;" />
-      <button onclick="responderOperabot()" style="background-color: goldenrod; border: none; padding: 8px 12px; border-radius: 6px; color: white; font-weight: bold;">Enviar</button>
-    </div>
+<div style="padding: 10px; display: flex; gap: 6px; align-items: flex-end;">
+  <textarea id="inputOperabot" placeholder="Escribí tu pregunta..." rows="1"
+    style="flex: 1; padding: 8px; border-radius: 6px; border: 1px solid goldenrod; resize: none; max-height: 120px; line-height: 1.3;"></textarea>
+  <button id="btnSendOperabot" onclick="responderOperabot()"
+    style="background-color: goldenrod; border: none; padding: 8px 12px; border-radius: 6px; color: white; font-weight: bold;">
+    Enviar
+  </button>
+</div>
+
 
   </div>
 </div>
@@ -1392,6 +1397,46 @@ function cerrarOperabot() {
   document.body.style.overflow = "";
 }
 
+// === Composer & helpers ===
+const chatLog          = document.getElementById("chatLog");
+const inputOperabotEl  = document.getElementById("inputOperabot");
+const btnSendOperabot  = document.getElementById("btnSendOperabot");
+
+function scrollChatBottom() {
+  chatLog?.scrollTo({ top: chatLog.scrollHeight, behavior: "smooth" });
+}
+
+function setComposerEnabled(enabled) {
+  if (!inputOperabotEl || !btnSendOperabot) return;
+  inputOperabotEl.disabled = !enabled;
+  btnSendOperabot.disabled = !enabled;
+  btnSendOperabot.style.opacity = enabled ? "1" : "0.6";
+  btnSendOperabot.style.cursor  = enabled ? "pointer" : "not-allowed";
+}
+
+function autoresizeComposer() {
+  if (!inputOperabotEl) return;
+  inputOperabotEl.style.height = "auto";
+  inputOperabotEl.style.height = Math.min(inputOperabotEl.scrollHeight, 120) + "px";
+}
+
+if (inputOperabotEl) {
+  // Auto-resize al tipear/pegar
+  inputOperabotEl.addEventListener("input", autoresizeComposer);
+
+  // Enter = enviar / Shift+Enter = nueva línea
+  inputOperabotEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      responderOperabot();
+    }
+  });
+
+  // Primer ajuste
+  autoresizeComposer();
+}
+
+
 // Cerrar haciendo click en el fondo difuminado
 document.addEventListener("DOMContentLoaded", () => {
   const fondo = document.getElementById("fondoOperabot");
@@ -1425,25 +1470,31 @@ function urlDesdeCita(filename) {
 
 
 async function responderOperabot() {
-  const input = document.getElementById("inputOperabot");
-  const chatLog = document.getElementById("chatLog");
-  const pregunta = (input.value || "").trim();
-  if (!pregunta) return;
+  const input   = inputOperabotEl || document.getElementById("inputOperabot");
+  const chatBox = chatLog || document.getElementById("chatLog");
+  const btn     = btnSendOperabot || document.getElementById("btnSendOperabot");
 
-  // mensaje usuario
+  if (!input || !chatBox) return;
+
+  const pregunta = (input.value || "").trim();
+  if (!pregunta || (btn && btn.disabled)) return;
+
+  // Mensaje del usuario
   const userMsg = document.createElement("div");
   userMsg.textContent = `🙋 ${pregunta}`;
   userMsg.style.marginBottom = "8px";
-  chatLog.appendChild(userMsg);
+  chatBox.appendChild(userMsg);
+  scrollChatBottom();
 
-  // indicador pensando
+  // Indicador pensando
   const thinking = document.createElement("div");
   thinking.innerHTML = `🤖 <span class="respuesta-entrenando">Pensando…</span>`;
   thinking.style.marginBottom = "12px";
-  chatLog.appendChild(thinking);
+  chatBox.appendChild(thinking);
+  scrollChatBottom();
 
-  input.value = "";
-  chatLog.scrollTop = chatLog.scrollHeight;
+  // Deshabilitar composer mientras responde
+  setComposerEnabled(false);
 
   try {
     const r = await fetch('/.netlify/functions/chat', {
@@ -1458,21 +1509,18 @@ async function responderOperabot() {
       const errDiv = document.createElement("div");
       errDiv.textContent = `❌ ${data?.error || `Error HTTP ${r.status}`}`;
       errDiv.style.marginBottom = "12px";
-      chatLog.appendChild(errDiv);
-      chatLog.scrollTop = chatLog.scrollHeight;
+      chatBox.appendChild(errDiv);
+      scrollChatBottom();
       return;
     }
 
-   // respuesta del bot (limpio marcadores tipo 【...】)
-const bot = document.createElement("div");
-const rawText = data.text || data.answer || "(sin texto)";
-// borra cualquier bloque entre los corchetes anchos 【】 que mete el modelo
-const cleanedText = rawText.replace(/【[^】]*】/g, '').replace(/\s{2,}/g, ' ').trim();
-bot.innerHTML = `🤖 ${escapeHtml(cleanedText)}`;
-bot.style.marginBottom = "6px";
-chatLog.appendChild(bot);
+    // Respuesta del bot
+    const bot = document.createElement("div");
+    bot.innerHTML = `🤖 ${escapeHtml(data.text || data.answer || "(sin texto)")}`;
+    bot.style.marginBottom = "6px";
+    chatBox.appendChild(bot);
 
-    // chips de citas (si hay)
+    // Chips de citas (si hay)
     if (Array.isArray(data.citations) && data.citations.length) {
       const wrap = document.createElement("div");
       wrap.style.display = "flex";
@@ -1499,18 +1547,23 @@ chatLog.appendChild(bot);
         wrap.appendChild(chip);
       });
 
-      chatLog.appendChild(wrap);
+      chatBox.appendChild(wrap);
     }
 
-    chatLog.scrollTop = chatLog.scrollHeight;
-
+    scrollChatBottom();
   } catch (e) {
     thinking.remove();
     const errDiv = document.createElement("div");
     errDiv.textContent = `❌ Error: ${e?.message || e}`;
     errDiv.style.marginBottom = "12px";
-    chatLog.appendChild(errDiv);
-    chatLog.scrollTop = chatLog.scrollHeight;
+    chatBox.appendChild(errDiv);
+    scrollChatBottom();
+  } finally {
+    // Limpiar y re-habilitar
+    input.value = "";
+    autoresizeComposer();
+    setComposerEnabled(true);
+    input.focus();
   }
 }
 </script>
