@@ -1507,19 +1507,37 @@ function toParagraphs(t) {
     .join('');
 }
 
+// 🔁 Reemplazar por completo:
 function urlDesdeCita(filename) {
   if (!filename) return null;
-  const key = normalizeBase(filename);
 
-  // 1) match directo contra el índice
-  if (pdfIndex[key]) return pdfIndex[key];
+  const norm = (t) => String(t || "")
+    .toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // sin acentos
+    .replace(/\.[a-z0-9]+$/, "")                      // sin extensión
+    .replace(/[^a-z0-9]/g, "");                       // solo alfanum
 
-  // 2) fallback aproximado por si cambia un poco el nombre
-  const hit = opciones.find(op => {
-    const base = normalizeBase(op.url);
-    return base.includes(key) || key.includes(base);
+  // Diccionario: nombre normalizado -> URL
+  const map = new Map();
+  opciones.forEach(op => {
+    // por nombre visible
+    const k1 = norm(op.nombre);
+    if (k1) map.set(k1, op.url);
+
+    // por archivo en la URL
+    const base = (op.url.split("/").pop() || "");
+    const k2 = norm(base);
+    if (k2) map.set(k2, op.url);
   });
-  return hit ? hit.url : null;
+
+  const key = norm(filename);
+  if (map.has(key)) return map.get(key);
+
+  // match flojito por si hay pequeñas diferencias
+  for (const [k, u] of map.entries()) {
+    if (k.includes(key) || key.includes(k)) return u;
+  }
+  return null;
 }
 
 
@@ -1630,6 +1648,22 @@ async function responderOperabot() {
     if (btnSend) btnSend.disabled = false;
   }
 }
+
+// 🎯 Captura clics en links de citas: <a data-filename="...">
+document.getElementById("chatLog").addEventListener("click", (e) => {
+  const a = e.target.closest('a[data-filename]');
+  if (!a) return;
+
+  e.preventDefault();
+  const fn = a.getAttribute("data-filename");
+  const url = urlDesdeCita(fn);
+  if (url) {
+    abrirModalPDF(url);
+  } else {
+    alert("No pude mapear la cita a un PDF local.\nArchivo citado: " + (fn || ""));
+  }
+});
+
 </script>
 </body>
 </html>
