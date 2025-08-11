@@ -1,6 +1,5 @@
 // netlify/functions/chat.mjs
-import OpenAI from "openai"; 
-import { getStore } from '@netlify/blobs';
+import OpenAI from "openai";
 
 
 const MODEL_PRIMARY = "gpt-4o-mini";
