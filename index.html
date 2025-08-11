@@ -1332,16 +1332,6 @@ function normalizeBase(s) {
     .replace(/[^a-z0-9]/g,'');       // solo alfanum
 }
 
-// Índice rápido: (basename de url) y (basename del nombre visible) → URL
-const pdfIndex = {};
-opciones.forEach(op => {
-  const byUrlBase  = normalizeBase(op.url);
-  const byNameBase = normalizeBase(op.nombre);
-  pdfIndex[byUrlBase]  = op.url;
-  pdfIndex[byNameBase] = op.url;
-});
-
-
 const buscador = document.getElementById("buscador");
 const resultados = document.getElementById("resultados");
 
@@ -1507,34 +1497,45 @@ function toParagraphs(t) {
     .join('');
 }
 
-// 🔁 Reemplazar por completo:
+// --- Índice dinámico de PDFs a partir de los enlaces reales del DOM ---
+// Usa normalizeBase(s) (que vos ya tenés definida)
+let pdfIndex = new Map();
+
+function rebuildPdfIndex() {
+  pdfIndex = new Map();
+  // Cualquier enlace que apunte a /documentos/
+  document.querySelectorAll('a[href^="documentos/"]').forEach(a => {
+    const url   = a.getAttribute('href') || '';
+    const label = (a.textContent || '').trim();
+    const base  = url.split('/').pop() || '';
+
+    // Varias claves que pueden aparecer citadas por el bot
+    const keys = [
+      base,                        // "embarque.pdf"
+      label,                       // "Embarque"
+      base.replace(/-/g, ' '),     // "personal-que-autoriza.pdf" -> "personal que autoriza.pdf"
+    ];
+
+    keys.forEach(k => {
+      const key = normalizeBase(k);
+      if (key && !pdfIndex.has(key)) pdfIndex.set(key, url);
+    });
+  });
+}
+
+// Construye el índice al cargar
+document.addEventListener('DOMContentLoaded', rebuildPdfIndex);
+
+// Mapea la cita del bot → URL local del PDF
 function urlDesdeCita(filename) {
   if (!filename) return null;
+  const key = normalizeBase(filename);
 
-  const norm = (t) => String(t || "")
-    .toLowerCase()
-    .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // sin acentos
-    .replace(/\.[a-z0-9]+$/, "")                      // sin extensión
-    .replace(/[^a-z0-9]/g, "");                       // solo alfanum
+  // 1) match exacto por clave normalizada
+  if (pdfIndex.has(key)) return pdfIndex.get(key);
 
-  // Diccionario: nombre normalizado -> URL
-  const map = new Map();
-  opciones.forEach(op => {
-    // por nombre visible
-    const k1 = norm(op.nombre);
-    if (k1) map.set(k1, op.url);
-
-    // por archivo en la URL
-    const base = (op.url.split("/").pop() || "");
-    const k2 = norm(base);
-    if (k2) map.set(k2, op.url);
-  });
-
-  const key = norm(filename);
-  if (map.has(key)) return map.get(key);
-
-  // match flojito por si hay pequeñas diferencias
-  for (const [k, u] of map.entries()) {
+  // 2) match flojito (inclusión en ambas direcciones)
+  for (const [k, u] of pdfIndex.entries()) {
     if (k.includes(key) || key.includes(k)) return u;
   }
   return null;
