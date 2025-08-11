@@ -735,6 +735,37 @@
   animation: parpadeoBot 1.15s infinite;
 }
 
+/* Burbujas del chat: más aire */
+.chat-msg { margin-bottom: 10px; }
+
+.chat-para {
+  margin: 0 0 10px 0;
+  line-height: 1.5;
+  white-space: pre-wrap; /* respeta \n para listas */
+}
+
+/* Composer más cómodo */
+#inputOperabot {
+  width: 100%;
+  min-height: 56px;      /* más alto por defecto */
+  max-height: 160px;
+  font-size: 16px;
+  line-height: 1.4;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 2px solid goldenrod;
+  resize: none;
+  box-sizing: border-box;
+}
+
+#btnSendOperabot {
+  height: 48px;
+  padding: 0 16px;
+  font-weight: bold;
+  border-radius: 8px;
+}
+
+
   </style>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
 </head>
@@ -1453,6 +1484,29 @@ function escapeHtml(s) {
   }[c]));
 }
 
+function autoResize(el) {
+  if (!el) return;
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 160) + 'px';
+}
+
+// Quita cosas tipo  del texto del bot
+function cleanupBotText(t) {
+  if (!t) return '';
+  return t
+    .replace(/【[^】]*】/g, '')     // saca citas inline
+    .replace(/\n{3,}/g, '\n\n')    // normaliza saltos
+    .trim();
+}
+
+// Convierte doble salto en párrafos html prolijos
+function toParagraphs(t) {
+  const parts = String(t).split(/\n{2,}/);
+  return parts
+    .map(p => `<p class="chat-para">${escapeHtml(p)}</p>`)
+    .join('');
+}
+
 function urlDesdeCita(filename) {
   if (!filename) return null;
   const key = normalizeBase(filename);
@@ -1470,31 +1524,34 @@ function urlDesdeCita(filename) {
 
 
 async function responderOperabot() {
-  const input   = inputOperabotEl || document.getElementById("inputOperabot");
-  const chatBox = chatLog || document.getElementById("chatLog");
-  const btn     = btnSendOperabot || document.getElementById("btnSendOperabot");
-
-  if (!input || !chatBox) return;
+  const input   = document.getElementById("inputOperabot");
+  const btnSend = document.getElementById("btnSendOperabot");
+  const chatLog = document.getElementById("chatLog");
 
   const pregunta = (input.value || "").trim();
-  if (!pregunta || (btn && btn.disabled)) return;
+  if (!pregunta) return;
 
-  // Mensaje del usuario
+  // Muestra la pregunta del usuario (con algo de estilo)
   const userMsg = document.createElement("div");
-  userMsg.textContent = `🙋 ${pregunta}`;
-  userMsg.style.marginBottom = "8px";
-  chatBox.appendChild(userMsg);
-  scrollChatBottom();
+  userMsg.className = "chat-msg";
+  userMsg.innerHTML = `<p class="chat-para">🙋 ${escapeHtml(pregunta)}</p>`;
+  chatLog.appendChild(userMsg);
 
-  // Indicador pensando
+  // Limpia el composer APENAS se envía
+  input.value = "";
+  autoResize(input);
+
+  // Indicador "pensando"
   const thinking = document.createElement("div");
+  thinking.className = "chat-msg";
   thinking.innerHTML = `🤖 <span class="respuesta-entrenando">Pensando…</span>`;
-  thinking.style.marginBottom = "12px";
-  chatBox.appendChild(thinking);
-  scrollChatBottom();
+  chatLog.appendChild(thinking);
 
-  // Deshabilitar composer mientras responde
-  setComposerEnabled(false);
+  // Deshabilita composer mientras responde
+  input.disabled = true;
+  if (btnSend) btnSend.disabled = true;
+
+  chatLog.scrollTop = chatLog.scrollHeight;
 
   try {
     const r = await fetch('/.netlify/functions/chat', {
@@ -1503,24 +1560,25 @@ async function responderOperabot() {
       body: JSON.stringify({ message: pregunta })
     });
     const data = await r.json();
+
     thinking.remove();
 
     if (!r.ok) {
       const errDiv = document.createElement("div");
-      errDiv.textContent = `❌ ${data?.error || `Error HTTP ${r.status}`}`;
-      errDiv.style.marginBottom = "12px";
-      chatBox.appendChild(errDiv);
-      scrollChatBottom();
+      errDiv.className = "chat-msg";
+      errDiv.innerHTML = `<p class="chat-para">❌ ${escapeHtml(data?.error || `Error HTTP ${r.status}`)}</p>`;
+      chatLog.appendChild(errDiv);
       return;
     }
 
-    // Respuesta del bot
+    // Texto del bot (limpio + en párrafos bonitos)
+    const cleaned = cleanupBotText(data.text || data.answer || "(sin texto)");
     const bot = document.createElement("div");
-    bot.innerHTML = `🤖 ${escapeHtml(data.text || data.answer || "(sin texto)")}`;
-    bot.style.marginBottom = "6px";
-    chatBox.appendChild(bot);
+    bot.className = "chat-msg";
+    bot.innerHTML = `🤖 ${toParagraphs(cleaned)}`;
+    chatLog.appendChild(bot);
 
-    // Chips de citas (si hay)
+    // Chips de citas SOLO como links (sin citar en el texto)
     if (Array.isArray(data.citations) && data.citations.length) {
       const wrap = document.createElement("div");
       wrap.style.display = "flex";
@@ -1531,7 +1589,7 @@ async function responderOperabot() {
       data.citations.forEach(c => {
         const chip = document.createElement("button");
         chip.type = "button";
-        chip.textContent = c.filename || "cita";
+        chip.textContent = c.filename || "Ver PDF";
         chip.style.border = "1px solid goldenrod";
         chip.style.background = "white";
         chip.style.color = "#2d537a";
@@ -1547,23 +1605,29 @@ async function responderOperabot() {
         wrap.appendChild(chip);
       });
 
-      chatBox.appendChild(wrap);
+      chatLog.appendChild(wrap);
     }
 
-    scrollChatBottom();
+    // Re-habilita composer
+    input.disabled = false;
+    if (btnSend) btnSend.disabled = false;
+    input.focus();
+
+    chatLog.scrollTop = chatLog.scrollHeight;
+
   } catch (e) {
     thinking.remove();
     const errDiv = document.createElement("div");
-    errDiv.textContent = `❌ Error: ${e?.message || e}`;
-    errDiv.style.marginBottom = "12px";
-    chatBox.appendChild(errDiv);
-    scrollChatBottom();
+    errDiv.className = "chat-msg";
+    errDiv.innerHTML = `<p class="chat-para">❌ Error: ${escapeHtml(e?.message || String(e))}</p>`;
+    chatLog.appendChild(errDiv);
   } finally {
-    // Limpiar y re-habilitar
+    // aseguro limpieza por si algo falló a mitad
+    // (si ya estaba vacío, no molesta)
     input.value = "";
-    autoresizeComposer();
-    setComposerEnabled(true);
-    input.focus();
+    autoResize(input);
+    input.disabled = false;
+    if (btnSend) btnSend.disabled = false;
   }
 }
 </script>
