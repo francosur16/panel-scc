@@ -1560,6 +1560,104 @@ async function responderOperabot() {
   input.value = "";
   autoResize(input);
 
+  // Comandos de memoria (global del sitio)
+// "recorda: ..." / "recuerda: ..." / "remember: ..."
+const mAdd = pregunta.match(/^\s*(recorda|recuerda|remember)\s*:\s*(.+)$/i);
+if (mAdd) {
+  const info = mAdd[2].trim();
+  try {
+    const res = await fetch('/.netlify/functions/memory', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ text: info })
+    });
+    const out = await res.json();
+    const ok = out?.ok;
+    const div = document.createElement("div");
+    div.className = "chat-msg";
+    div.innerHTML = `<p class="chat-para">🧠 ${ok ? "Anotado en la memoria del sitio." : "No pude guardar la memoria."}</p>`;
+    chatLog.appendChild(div);
+  } catch (e) {
+    const div = document.createElement("div");
+    div.className = "chat-msg";
+    div.innerHTML = `<p class="chat-para">❌ Error guardando memoria: ${escapeHtml(e?.message || String(e))}</p>`;
+    chatLog.appendChild(div);
+  }
+  return;
+}
+
+// "memoria?" para listar
+if (/^\s*memoria\?\s*$/i.test(pregunta)) {
+  try {
+    const res = await fetch('/.netlify/functions/memory', { method: 'GET' });
+    const out = await res.json();
+    const items = Array.isArray(out?.items) ? out.items : [];
+    const html = items.length
+      ? items.map(x => `• ${escapeHtml(x.text)}`).join('<br>')
+      : '(vacía)';
+    const div = document.createElement("div");
+    div.className = "chat-msg";
+    div.innerHTML = `<p class="chat-para">🧠 Memoria global:<br>${html}</p>`;
+    chatLog.appendChild(div);
+  } catch (e) {
+    const div = document.createElement("div");
+    div.className = "chat-msg";
+    div.innerHTML = `<p class="chat-para">❌ Error leyendo memoria.</p>`;
+    chatLog.appendChild(div);
+  }
+  return;
+}
+
+// "borrar memoria" para limpiar todo
+if (/^\s*borrar\s+memoria\s*$/i.test(pregunta)) {
+  try {
+    const res = await fetch('/.netlify/functions/memory', { method: 'DELETE' });
+    await res.json();
+    const div = document.createElement("div");
+    div.className = "chat-msg";
+    div.innerHTML = `<p class="chat-para">🧹 Memoria global borrada.</p>`;
+    chatLog.appendChild(div);
+  } catch {
+    const div = document.createElement("div");
+    div.className = "chat-msg";
+    div.innerHTML = `<p class="chat-para">❌ No pude borrar la memoria.</p>`;
+    chatLog.appendChild(div);
+  }
+  return;
+}
+
+const mDelText = pregunta.match(/^\s*borrar\s*:\s*(.+)$/i);
+if (mDelText) {
+  try {
+    const needle = mDelText[1].toLowerCase().trim();
+    const listRes = await fetch('/.netlify/functions/memory', { method: 'GET' });
+    const listOut = await listRes.json();
+    const list = Array.isArray(listOut?.items) ? listOut.items : [];
+    const match =
+      list.find(x => (x.text || '').toLowerCase() === needle) ||
+      list.find(x => (x.text || '').toLowerCase().includes(needle));
+    if (match) {
+      await fetch('/.netlify/functions/memory?id=' + encodeURIComponent(match.id), { method: 'DELETE' });
+      const div = document.createElement("div");
+      div.className = "chat-msg";
+      div.innerHTML = `<p class="chat-para">🧹 Borrado: ${escapeHtml(match.text)}</p>`;
+      chatLog.appendChild(div);
+    } else {
+      const div = document.createElement("div");
+      div.className = "chat-msg";
+      div.innerHTML = `<p class="chat-para">⚠️ No encontré nada que coincida con: ${escapeHtml(needle)}</p>`;
+      chatLog.appendChild(div);
+    }
+  } catch (e) {
+    const div = document.createElement("div");
+    div.className = "chat-msg";
+    div.innerHTML = `<p class="chat-para">❌ No pude borrar por texto.</p>`;
+    chatLog.appendChild(div);
+  }
+  return;
+}
+
+
   // Indicador "pensando"
   const thinking = document.createElement("div");
   thinking.className = "chat-msg";

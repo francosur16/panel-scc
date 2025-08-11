@@ -1,5 +1,7 @@
 // netlify/functions/chat.mjs
-import OpenAI from "openai";
+import OpenAI from "openai"; 
+import { getStore } from '@netlify/blobs';
+
 
 const MODEL_PRIMARY = "gpt-4o-mini";
 const MODEL_FALLBACK = "gpt-4o";
@@ -176,12 +178,23 @@ export async function handler(event) {
         content: message,
       });
 
-      const run = await client.beta.threads.runs.createAndPoll(threadId, {
-        assistant_id: assistantId,
-        ...(VECTOR_STORE_ID
-          ? { tool_resources: { file_search: { vector_store_ids: [VECTOR_STORE_ID] } } }
-          : {}),
-      });
+      // Cargar memoria global del sitio (Netlify Blobs)
+const memStore = getStore('operabot-memory');
+const memList = (await memStore.get('global', { type: 'json' })) || [];
+const memText = memList.map(m => `• ${m.text}`).join('\n');
+const instructionsForRun = memText
+  ? `${systemPrompt}\n\nMemoria del sitio (usar solo si es relevante):\n${memText}\n`
+  : systemPrompt;
+
+
+    const run = await client.beta.threads.runs.createAndPoll(threadId, {
+  assistant_id: assistantId,
+  instructions: instructionsForRun,
+  ...(VECTOR_STORE_ID
+    ? { tool_resources: { file_search: { vector_store_ids: [VECTOR_STORE_ID] } } }
+    : {}),
+});
+
 
       const runId = run?.id;
       dbg.runId = runId;
