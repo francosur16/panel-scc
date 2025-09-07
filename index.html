@@ -1307,20 +1307,33 @@ function cerrarSubAlarmMonitory() {
   }, 400);
 }
 
-const opciones = [
-  { nombre: "Daily y HTP", url: "documentos/daily_htp.pdf" },
-  { nombre: "Embarque", url: "documentos/embarque.pdf" },
-  { nombre: "Personal que autoriza", url: "documentos/personal-que-autoriza.pdf" },
-  { nombre: "Acceso a data Q", url: "documentos/acceso a data q.pdf" },
-  { nombre: "Código Q", url: "documentos/código q.pdf" },
-  { nombre: "Operativo invierno", url: "documentos/operativo invierno.pdf" },
-  { nombre: "Reporte de marcaciones", url: "documentos/marcaciones.pdf" },
-  { nombre: "Panel caído", url: "documentos/panel_caido.pdf" },
-  { nombre: "Ticket Lenel", url: "documentos/ticket_lenel.pdf" },
-  { nombre: "TRBONet", url: "documentos/trbonet.pdf" },
-  { nombre: "Links útiles", url: "documentos/links_utiles.pdf" },
-  { nombre: "InReach", url: "documentos/inreach.pdf" }
-];
+let opciones = [];
+
+function buildOpcionesDesdeDOM() {
+  const out = [];
+  const seen = new Set();
+
+  // Toma TODOS los enlaces que apunten a /documentos/
+  document.querySelectorAll('a[href^="documentos/"]').forEach(a => {
+    const href = a.getAttribute('href') || '';
+    if (!href || seen.has(href)) return;
+
+    // Nombre visible o, si no hay, el filename sin .pdf
+    const texto = (a.textContent || '').trim();
+    const filename = href.split('/').pop() || '';
+    const nombre = texto || filename.replace(/\.pdf$/i, '');
+
+    out.push({ nombre, url: href });
+    seen.add(href);
+  });
+  return out;
+}
+
+// Inicializa índices cuando el DOM está listo
+document.addEventListener('DOMContentLoaded', () => {
+  rebuildPdfIndex();                  // ya la tenías
+  opciones = buildOpcionesDesdeDOM(); // ahora llena el buscador
+});
 
 // Normaliza a "clave" comparable: basename, sin extensión, sin acentos ni símbolos
 function normalizeBase(s) {

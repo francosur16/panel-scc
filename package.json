@@ -3,14 +3,26 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
-"scripts": {
-  "start": "npx -y netlify-cli dev",
-  "build": "echo \"No build step\""
-},
+  "scripts": {
+    "start": "npx -y netlify-cli dev",
+    "build": "echo \"No build step\""
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "openai": "^5.12.2"
+    "dotenv": "^17.2.2",
+    "openai": "^5.19.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/francosur16/panel-scc.git"
+  },
+  "bugs": {
+    "url": "https://github.com/francosur16/panel-scc/issues"
+  },
+  "homepage": "https://github.com/francosur16/panel-scc#readme",
+  "devDependencies": {
+    "netlify-cli": "^23.5.0"
   }
 }

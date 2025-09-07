@@ -1,0 +1,16 @@
+﻿# deps
+node_modules/
+
+# env
+.env
+.env.local
+
+# netlify local
+.netlify/
+
+# builds / caches
+dist/
+build/
+.svelte-kit/
+.vscode/
+.DS_Store
