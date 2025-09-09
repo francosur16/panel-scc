@@ -766,6 +766,210 @@
 }
 
 
+/* === Procedimientos: grilla compacta === */
+#subProcedimientosOverlay .grupo-subbotones{
+  width: min(1100px, 92vw);
+  max-height: 78vh;
+  overflow: auto;
+  align-items: stretch;
+  padding: 22px;                 /* un poco menos de padding */
+}
+
+#procedimientos-list{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); /* columnas más chicas */
+  gap: 10px;                        /* menos separación */
+  width: 100%;
+  margin-top: 8px;
+}
+
+/* Solo los botones de este overlay: más chicos y de varias líneas */
+#subProcedimientosOverlay .subboton{
+  width: 100%;
+  min-width: 0;
+  padding: 8px 12px;               /* antes 12–20 */
+  font-size: 14px;                 /* antes 16 */
+  line-height: 1.25;
+  border-radius: 6px;
+  border-width: 1.5px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+  text-align: left;
+  white-space: normal;             /* permitir saltos de línea */
+  word-break: break-word;
+}
+
+/* opcional: títulos largos, 2 líneas máximo (comenta si preferís ver todo) */
+#subProcedimientosOverlay .subboton{
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ===== Procedimientos: layout específico ===== */
+#subProcedimientosOverlay .grupo-subbotones{
+  width: min(1100px, 92vw);
+  max-height: 72vh;            /* alto del contenedor */
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+  padding: 20px;
+}
+
+#procedimientos-list{
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 10px 12px;              /* filas / columnas */
+  overflow-y: auto;            /* scroll interno */
+  padding-right: 6px;          /* aire para scroll */
+}
+
+/* Botones más chicos y con 2 líneas máx */
+#subProcedimientosOverlay .subboton{
+  width: 100%;
+  min-width: unset;            /* pisa el min-width global */
+  padding: 10px 12px;
+  font-size: 15px;
+  line-height: 1.25;
+
+  display: -webkit-box;        /* clamp 2 líneas (WebKit/Chromium) */
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+/* Hover consistente en el overlay de procedimientos */
+#subProcedimientosOverlay .subboton:hover{
+  background-color: goldenrod;
+  color: white;
+}
+
+/* ===== Procedimientos: versión compacta ===== */
+#subProcedimientosOverlay .grupo-subbotones{
+  width: min(1040px, 92vw);
+  max-height: 70vh;
+  gap: 10px;
+  padding: 16px 16px 12px;
+}
+
+/* grilla más angosta + más espacio entre chips */
+#procedimientos-list{
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); /* antes 260px */
+  gap: 12px 18px;            /* filas / columnas (más aire lateral) */
+  overflow-y: auto;
+  overflow-x: hidden;        /* evita scroll horizontal */
+  padding-right: 8px;
+}
+
+/* subbotones más chicos y con 2 líneas */
+#subProcedimientosOverlay .subboton{
+  width: 100%;
+  min-width: unset;
+  padding: 8px 10px;         /* antes 10px 12px */
+  font-size: 13px;           /* antes 15px */
+  line-height: 1.25;
+  border-radius: 8px;
+
+  /* clamp a 2 líneas (Chromium/WebKit) */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+
+  /* corta palabras largas para que no “empujen” la grilla */
+  white-space: normal;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}
+
+/* hover consistente dentro del overlay de Procedimientos */
+#subProcedimientosOverlay .subboton:hover{
+  background-color: goldenrod;
+  color: white;
+}
+
+/* Procedimientos: más espacio entre subbotones */
+#subProcedimientosOverlay .grupo-subbotones{
+  width: min(1040px, 92vw);
+  max-height: 70vh;
+  gap: 12px;                 /* espacio entre título/cerrar y la grilla */
+  padding: 16px 12px;        /* aire exterior */
+}
+
+/* Grilla con más separación visible entre chips */
+#procedimientos-list{
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px 20px;            /* ↑ filas / → columnas  (subí estos valores a gusto) */
+  padding: 6px 4px;          /* que no queden pegados a los bordes del contenedor */
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Chips más compactos y sin “desbordes” por el borde/padding */
+#subProcedimientosOverlay .subboton{
+  box-sizing: border-box;    /* clave: calcula ancho con padding/borde dentro */
+  width: 100%;
+  padding: 8px 10px;
+  font-size: 14px;
+  line-height: 1.25;
+  border-radius: 8px;
+
+  /* clamp a 2 líneas */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+
+  white-space: normal;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}
+
+/* Procedimientos: más alto y cómodo */
+#subProcedimientosOverlay .subboton{
+  /* tipografía compacta */
+  font-size: 14px;
+  line-height: 1.3;
+
+  /* altura: mostrarmos 3 líneas */
+  --lines: 3;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: var(--lines);   /* antes 2 */
+  overflow: hidden;
+
+  /* que el “chip” tenga la altura para esas 3 líneas + padding */
+  padding: 10px 12px;
+  min-height: calc(var(--lines) * 1.3em + 20px);
+
+  /* por las dudas, que no rompa en palabras largas */
+  white-space: normal;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}
+
+/* Cerrar del overlay de Procedimientos: compacto y centrado */
+#subProcedimientosOverlay .cerrarSub{
+  /* no dejar que se estire en el contenedor flex */
+  align-self: center;     /* << clave para flex */
+  flex: 0 0 auto;
+
+  /* tamaño al contenido (ancho angosto como en "Otros") */
+  width: auto !important;
+  min-width: 0;
+  display: inline-flex;   /* mantiene el ancho justo */
+  align-items: center;
+  justify-content: center;
+
+  /* look más chico */
+  padding: 8px 14px;
+  font-size: 16px;
+}
+
   </style>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
 </head>
@@ -878,9 +1082,7 @@
 
 <div id="subProcedimientosOverlay" class="overlay-subbotones">
   <div class="grupo-subbotones">
-   <a href="documentos/proceso_a.pdf" class="subboton" onclick="event.preventDefault(); abrirPDFDesdeSubboton(this.href, 'subProcedimientosOverlay');">Procedimiento SCC</a>
-   <a href="documentos/proceso_a.pdf" class="subboton" onclick="event.preventDefault(); abrirPDFDesdeSubboton(this.href, 'subProcedimientosOverlay');">Procedimiento CBVZ</a>
-   <a href="documentos/Procedimiento Planta de procesos.pdf" class="subboton" onclick="event.preventDefault(); abrirPDFDesdeSubboton(this.href, 'subProcedimientosOverlay');">Procedimiento Planta de procesos</a>
+    <div id="procedimientos-list"></div>
     <button onclick="cerrarProcedimientosOverlay()" class="cerrarSub">✖</button>
   </div>
 </div>
@@ -1679,5 +1881,39 @@ document.getElementById("chatLog").addEventListener("click", (e) => {
 });
 
 </script>
+
+<script type="module">
+  import { procedimientosNuevos } from "./scripts/procedimientos-nuevos.js";
+
+  function cleanTitle(s){
+    return String(s)
+      .replace(/["“”]+/g, "")           // comillas sueltas
+      .replace(/\.(docx?|pdf)$/gi, "")  // .doc/.docx/.pdf del final
+      .replace(/\s{2,}/g, " ")
+      .trim();
+  }
+
+  function crearSubboton({ file, title }) {
+    const a = document.createElement("a");
+    const u = new URL(file, location.origin); // arma URL absoluta y bien codificada
+    a.href = u.pathname;                       // usa el path ya %20-encoded
+    a.className = "subboton";
+    a.textContent = cleanTitle(title);
+    a.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      abrirPDFDesdeSubboton(a.href, "subProcedimientosOverlay");
+    });
+    return a;
+  }
+
+const cont = document.getElementById("procedimientos-list");
+if (cont && Array.isArray(procedimientosNuevos)) {
+  procedimientosNuevos
+    .slice()
+    .sort((a, b) => a.title.localeCompare(b.title, 'es', { numeric: true, sensitivity: 'base' }))
+    .forEach(item => cont.appendChild(crearSubboton(item)));
+}
+</script>
+
 </body>
 </html>
